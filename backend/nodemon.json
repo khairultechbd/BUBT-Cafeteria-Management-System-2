@@ -1,0 +1,12 @@
+{
+  "watch": ["*.js", "routes", "models", "config", "middleware", "utils"],
+  "ignore": ["node_modules", "*.log"],
+  "delay": 2000,
+  "exec": "node server.js",
+  "env": {
+    "NODE_ENV": "development"
+  },
+  "signal": "SIGTERM",
+  "restartable": "rs"
+}
+
