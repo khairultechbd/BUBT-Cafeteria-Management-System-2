@@ -75,14 +75,22 @@ router.post("/", protect, async (req, res) => {
         throw new Error(`Invalid order_time (${orderDate}) — cannot determine DB.`)
       }
     } catch (err) {
-      console.error(`[OrderFragmentation] Error determining database:`, err.message)
+      console.error(`[OrderFragmentation] Error determining database for order:`, err.message)
+      console.error(`[OrderFragmentation] Order date: ${orderDate}, User: ${req.user.email || req.user.id}`)
       return res.status(500).json({ message: "Order creation failed", error: err.message })
     }
 
     // Get user's database for notifications (still use user's DB for user notifications)
     const userDbKey = req.user.dbKey || getDatabaseForUser({ role: req.user.role, email: req.user.email }) || "db2"
     
-    const Order = await getOrderModel(orderDbKey)
+    // Get order model for the correct database
+    let Order
+    try {
+      Order = await getOrderModel(orderDbKey)
+    } catch (err) {
+      console.error(`[OrderFragmentation] Error connecting to database ${orderDbKey}:`, err.message)
+      return res.status(500).json({ message: "Order creation failed", error: `Database connection error: ${err.message}` })
+    }
 
     const order = new Order({
       userId: req.user.id,
@@ -95,8 +103,11 @@ router.post("/", protect, async (req, res) => {
 
     await order.save()
     
-    // Log successful insertion
-    console.log(`[OrderFragmentation] Inserting order ${order._id} into ${orderDbKey} at ${orderDate.toISOString()}`)
+    // Log successful insertion with collection name
+    const collectionName = orderDbKey === "db1" ? "Order_Frag1" : orderDbKey === "db2" ? "Order_Frag2" : "Order_Frag3"
+    const localHour = orderDate.getHours()
+    const localMinutes = orderDate.getMinutes()
+    console.log(`[OrderFragmentation] Successfully inserted order ${order._id} into ${orderDbKey} → Collection: ${collectionName} (Local time: ${localHour.toString().padStart(2, '0')}:${localMinutes.toString().padStart(2, '0')})`)
 
     // Populate product details
     await order.populate("productId")

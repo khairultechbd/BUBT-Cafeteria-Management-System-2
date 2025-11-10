@@ -96,7 +96,13 @@ router.post("/", protect, adminOnly, async (req, res) => {
     }
 
     // Get product model for the correct database
-    const Product = await getProductModel(dbKey)
+    let Product
+    try {
+      Product = await getProductModel(dbKey)
+    } catch (err) {
+      console.error(`[FoodFragmentation] Error connecting to database ${dbKey}:`, err.message)
+      return res.status(500).json({ message: "Add food failed", error: `Database connection error: ${err.message}` })
+    }
     
     const product = new Product({
       name,
@@ -110,8 +116,9 @@ router.post("/", protect, adminOnly, async (req, res) => {
 
     await product.save()
     
-    // Log successful insertion
-    console.log(`[FoodFragmentation] Inserting ${name} (timeCategory: ${timeCategory}) into ${dbKey}`)
+    // Log successful insertion with collection name
+    const collectionName = dbKey === "db1" ? "Menu_Frag1" : dbKey === "db2" ? "Menu_Frag2" : "Menu_Frag3"
+    console.log(`[FoodFragmentation] Inserting ${name} (timeCategory: ${timeCategory}) into ${dbKey} → Collection: ${collectionName}`)
     
     res.status(201).json({ message: "Food item added successfully", data: product })
   } catch (error) {

@@ -5,32 +5,61 @@ const connections = {}
 
 // Fragmentation strategy based on USER ROLE
 const getDatabaseKey = (userData) => {
-  // PRIMARY STRATEGY: Fragment by user role
   const role = userData?.role?.toLowerCase()
+  const department = userData?.department?.toLowerCase() || ""
+  const email = userData?.email || ""
   
-  if (role === "admin") {
-    return "db1" // All admins go to db1
-  } else if (role === "user") {
-    // Regular users: distribute across db2 and db3
-    // Strategy: Use email hash to distribute users evenly
-    if (userData?.email) {
-      const hash = userData.email.split("").reduce((acc, char) => acc + char.charCodeAt(0), 0)
-      // Even distribution: db2 or db3
-      return hash % 2 === 0 ? "db2" : "db3"
+  // Student → db1
+  // Check if role is "student" or department contains "student"
+  if (role === "student" || department.includes("student")) {
+    const dbKey = "db1"
+    console.log(`[UserFragmentation] User ${email} (role: ${role}, department: ${department}) → ${dbKey} [Student]`)
+    return dbKey
+  }
+  
+  // Teacher → db2
+  // Check if role is "teacher" or department contains "teacher"
+  if (role === "teacher" || department.includes("teacher")) {
+    const dbKey = "db2"
+    console.log(`[UserFragmentation] User ${email} (role: ${role}, department: ${department}) → ${dbKey} [Teacher]`)
+    return dbKey
+  }
+  
+  // Admin & Staff → db3
+  // Check if role is "admin" or "staff"
+  if (role === "admin" || role === "staff") {
+    const dbKey = "db3"
+    console.log(`[UserFragmentation] User ${email} (role: ${role}, department: ${department}) → ${dbKey} [Admin/Staff]`)
+    return dbKey
+  }
+  
+  // Regular users (role="user") → distribute evenly between db2 and db3 using email hash
+  if (role === "user") {
+    if (email) {
+      const hash = email.split("").reduce((acc, char) => acc + char.charCodeAt(0), 0)
+      const dbKey = hash % 2 === 0 ? "db2" : "db3"
+      console.log(`[UserFragmentation] User ${email} (role: ${role}) → ${dbKey} [Regular User - Email Hash]`)
+      return dbKey
     }
-    // Default users to db2
-    return "db2"
+    // Default regular users to db2
+    const dbKey = "db2"
+    console.log(`[UserFragmentation] User ${email} (role: ${role}) → ${dbKey} [Regular User - Default]`)
+    return dbKey
   }
   
   // Fallback: If role not specified, distribute by email hash
-  if (userData?.email) {
-    const hash = userData.email.split("").reduce((acc, char) => acc + char.charCodeAt(0), 0)
+  if (email) {
+    const hash = email.split("").reduce((acc, char) => acc + char.charCodeAt(0), 0)
     const dbNum = (hash % 3) + 1
-    return `db${dbNum}`
+    const dbKey = `db${dbNum}`
+    console.log(`[UserFragmentation] User ${email} (role: ${role || "unknown"}) → ${dbKey} [Fallback - Email Hash]`)
+    return dbKey
   }
   
   // Default to db2 for new users
-  return "db2"
+  const dbKey = "db2"
+  console.log(`[UserFragmentation] User ${email || "unknown"} (role: ${role || "unknown"}) → ${dbKey} [Default]`)
+  return dbKey
 }
 
 // Get database URI for a specific database key
@@ -166,19 +195,29 @@ export const getDatabaseForOrder = (orderDate) => {
     throw new Error(`Invalid orderDate: ${orderDate} - cannot parse date`)
   }
   
+  // Use local PC time (not Bangladesh time)
+  // Get local hour directly from the date object
   const hour = date.getHours()
+  const minutes = date.getMinutes()
   
-  // Fragment by time of day:
+  // Format local time for logging
+  const localTimeString = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')} ${String(hour).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(date.getSeconds()).padStart(2, '0')} (Local Time)`
+  
+  // Fragment by time of day (Local PC time):
   // Morning: < 11:00 AM → db1
   // Lunch: 11:00 AM - 3:00 PM (11-15) → db2
   // Evening: > 3:00 PM (15) → db3
+  let dbKey
   if (hour < 11) {
-    return "db1" // Morning orders
+    dbKey = "db1" // Morning orders
   } else if (hour >= 11 && hour <= 15) {
-    return "db2" // Lunch orders
+    dbKey = "db2" // Lunch orders
   } else {
-    return "db3" // Evening orders
+    dbKey = "db3" // Evening orders
   }
+  
+  console.log(`[OrderFragmentation] Order at ${localTimeString} (hour: ${hour}) → ${dbKey}`)
+  return dbKey
 }
 
 // Get all database connections

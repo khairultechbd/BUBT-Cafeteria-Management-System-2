@@ -1,7 +1,7 @@
 import dotenv from "dotenv"
 import path from "path"
 import { fileURLToPath } from "url"
-import { connectToDatabase, closeAllConnections } from "../config/dbManager.js"
+import { connectToDatabase, closeAllConnections, getDatabaseForMenu } from "../config/dbManager.js"
 import { getProductModel } from "../utils/modelFactory.js"
 
 const __filename = fileURLToPath(import.meta.url)
@@ -203,29 +203,41 @@ const bengaliFoods = [
 
 async function seedFoods() {
   try {
-    console.log("🌱 Seeding Bengali foods...")
-
-    // Connect to db1 (where products are stored)
-    await connectToDatabase("db1")
-    const Product = await getProductModel("db1")
+    console.log("🌱 Seeding Bengali foods with fragmentation...")
 
     // Clear existing products (optional - comment out if you want to keep existing)
-    // await Product.deleteMany({})
+    // Note: This would need to be done per database if you want to clear all
 
     let created = 0
     let skipped = 0
+    const dbStats = { db1: 0, db2: 0, db3: 0 }
 
     for (const food of bengaliFoods) {
-      const existing = await Product.findOne({ name: food.name, timeCategory: food.timeCategory })
-      
-      if (existing) {
-        console.log(`⏭️  Skipped: ${food.name} (${food.timeCategory}) - already exists`)
-        skipped++
-      } else {
-        const product = new Product(food)
-        await product.save()
-        console.log(`✅ Created: ${food.name} (${food.timeCategory}) - ${food.price}৳`)
-        created++
+      try {
+        // Determine target database based on timeCategory
+        const dbKey = getDatabaseForMenu(food.timeCategory)
+        
+        // Connect to the appropriate database
+        await connectToDatabase(dbKey)
+        const Product = await getProductModel(dbKey)
+
+        // Check if food already exists in this database
+        const existing = await Product.findOne({ name: food.name, timeCategory: food.timeCategory })
+        
+        if (existing) {
+          console.log(`⏭️  Skipped: ${food.name} (${food.timeCategory}) - already exists in ${dbKey}`)
+          skipped++
+        } else {
+          const product = new Product(food)
+          await product.save()
+          const collectionName = dbKey === "db1" ? "Menu_Frag1" : dbKey === "db2" ? "Menu_Frag2" : "Menu_Frag3"
+          console.log(`[FoodFragmentation] Seeding ${food.name} (${food.timeCategory}) into ${dbKey} → Collection: ${collectionName} - ${food.price}৳`)
+          created++
+          dbStats[dbKey] = (dbStats[dbKey] || 0) + 1
+        }
+      } catch (error) {
+        console.error(`❌ Error seeding ${food.name} (${food.timeCategory}):`, error.message)
+        // Continue with next food item
       }
     }
 
@@ -233,6 +245,10 @@ async function seedFoods() {
     console.log(`✅ Created: ${created}`)
     console.log(`⏭️  Skipped: ${skipped}`)
     console.log(`📦 Total: ${bengaliFoods.length}`)
+    console.log("\n🗄️  Database Distribution:")
+    console.log(`   db1 (Morning): ${dbStats.db1 || 0} items`)
+    console.log(`   db2 (Lunch): ${dbStats.db2 || 0} items`)
+    console.log(`   db3 (Evening): ${dbStats.db3 || 0} items`)
     console.log("\n🎉 Seeding completed!")
   } catch (error) {
     console.error("❌ Error seeding foods:", error)

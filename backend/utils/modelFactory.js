@@ -4,9 +4,28 @@ import { getConnection } from "../config/dbManager.js"
 // Model cache per database
 const modelCache = {}
 
+// Helper function to get collection name based on model type and database
+const getCollectionName = (modelName, dbKey) => {
+  const fragNum = dbKey === "db1" ? "1" : dbKey === "db2" ? "2" : "3"
+  
+  if (modelName === "User") {
+    return `User_Frag${fragNum}`
+  } else if (modelName === "Product") {
+    return `Menu_Frag${fragNum}`
+  } else if (modelName === "Order") {
+    return `Order_Frag${fragNum}`
+  } else if (modelName === "Notification") {
+    return `Notification_Frag${fragNum}`
+  }
+  
+  // Fallback to original model name if not mapped
+  return modelName
+}
+
 // Create or get a model for a specific database connection
 export const getModel = async (modelName, schema, dbKey) => {
-  const cacheKey = `${dbKey}_${modelName}`
+  const collectionName = getCollectionName(modelName, dbKey)
+  const cacheKey = `${dbKey}_${collectionName}`
   
   // Return cached model if exists and connection is active
   if (modelCache[cacheKey]) {
@@ -31,9 +50,12 @@ export const getModel = async (modelName, schema, dbKey) => {
     }
   }
   
-  // Create model on this specific connection
+  // Create model on this specific connection with collection name
   // Check if model already exists on this connection
-  const model = conn.models[modelName] || conn.model(modelName, schema)
+  const model = conn.models[collectionName] || conn.model(collectionName, schema)
+  
+  // Log collection usage
+  console.log(`[CollectionNaming] Using collection ${collectionName} in ${dbKey} for model ${modelName}`)
   
   // Cache it
   modelCache[cacheKey] = model

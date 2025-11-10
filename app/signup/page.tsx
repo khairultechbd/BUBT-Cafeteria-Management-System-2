@@ -15,13 +15,14 @@ export default function SignupPage() {
   const [formData, setFormData] = useState({
     name: "",
     email: "",
+    role: "student",
     password: "",
     confirmPassword: "",
   })
   const [error, setError] = useState("")
   const [loading, setLoading] = useState(false)
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value })
   }
 
@@ -44,6 +45,7 @@ export default function SignupPage() {
         body: JSON.stringify({
           name: formData.name,
           email: formData.email,
+          role: formData.role,
           password: formData.password,
         }),
       })
@@ -115,6 +117,21 @@ export default function SignupPage() {
                 placeholder="your@email.com"
                 required
               />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">Role</label>
+              <select
+                name="role"
+                value={formData.role}
+                onChange={handleChange}
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                required
+              >
+                <option value="student">Student</option>
+                <option value="teacher">Teacher</option>
+                <option value="admin">Admin</option>
+                <option value="staff">Staff</option>
+              </select>
             </div>
             <div>
               <label className="block text-sm font-medium mb-1">Password</label>

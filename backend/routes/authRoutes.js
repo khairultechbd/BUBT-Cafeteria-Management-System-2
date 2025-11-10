@@ -38,6 +38,13 @@ router.post("/register", async (req, res) => {
       return res.status(400).json({ message: "All fields are required" })
     }
 
+    // Validate role if provided
+    const validRoles = ["student", "teacher", "admin", "staff", "user"]
+    const userRole = role || "user"
+    if (role && !validRoles.includes(userRole.toLowerCase())) {
+      return res.status(400).json({ message: `Invalid role. Must be one of: ${validRoles.join(", ")}` })
+    }
+
     // Check if user exists across all databases
     const existing = await findUserAcrossDatabases(email)
     if (existing) {
@@ -45,26 +52,27 @@ router.post("/register", async (req, res) => {
     }
 
     // Determine which database to use based on user data
-    // Use role from request or default to "user"
-    const userRole = role || "user"
-    const userData = { email, department, role: userRole }
+    const userData = { email, department, role: userRole.toLowerCase() }
     const dbKey = getDatabaseForUser(userData)
     
     // Get the User model for the selected database
     const User = await getUserModel(dbKey)
 
     // Create new user (status = pending by default)
-    // Note: Regular signups always create "user" role, admins must be created manually or approved
     const user = new User({
       name,
       email,
       password,
-      role: userRole === "admin" ? "admin" : "user", // Allow admin role if provided
+      role: userRole.toLowerCase(),
       status: "pending",
       department: department || "General",
     })
 
     await user.save()
+
+    // Log with collection name
+    const collectionName = dbKey === "db1" ? "User_Frag1" : dbKey === "db2" ? "User_Frag2" : "User_Frag3"
+    console.log(`[UserCreation] Created user ${email} with role ${userRole} in ${dbKey} → Collection: ${collectionName}`)
 
     res.status(201).json({
       message: "User registered successfully. Awaiting admin approval.",
@@ -72,12 +80,14 @@ router.post("/register", async (req, res) => {
         id: user._id,
         name: user.name,
         email: user.email,
+        role: user.role,
         status: user.status,
         department: user.department,
         dbKey, // Include which database was used
       },
     })
   } catch (error) {
+    console.error(`[UserCreation] Error creating user:`, error.message)
     res.status(500).json({ message: error.message })
   }
 })

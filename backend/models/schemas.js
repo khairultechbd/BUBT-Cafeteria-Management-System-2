@@ -19,7 +19,7 @@ export const userSchema = new mongoose.Schema(
     },
     role: {
       type: String,
-      enum: ["user", "admin"],
+      enum: ["student", "teacher", "admin", "staff", "user"],
       default: "user",
     },
     status: {

@@ -4,8 +4,9 @@ import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import Topbar from "@/components/topbar"
 import Sidebar from "@/components/sidebar"
-import { Card, CardContent } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
 import { SearchInput } from "@/components/search-input"
 import { StatusBadge } from "@/components/status-badge"
 import { useDebounce } from "@/hooks/use-debounce"
@@ -37,6 +38,14 @@ export default function AdminUsersPage() {
   const [users, setUsers] = useState<AdminUser[]>([])
   const [searchQuery, setSearchQuery] = useState<string>("")
   const [loading, setLoading] = useState(true)
+  const [showCreateForm, setShowCreateForm] = useState(false)
+  const [formData, setFormData] = useState({
+    name: "",
+    email: "",
+    password: "",
+    role: "student",
+    department: "",
+  })
   const debouncedSearch = useDebounce(searchQuery, 300)
 
   useEffect(() => {
@@ -132,6 +141,54 @@ export default function AdminUsersPage() {
     }
   }
 
+  const handleCreateUser = async () => {
+    if (!formData.name || !formData.email || !formData.password || !formData.role) {
+      toast({
+        variant: "destructive",
+        title: "Validation Error",
+        description: "Please fill in all required fields",
+      })
+      return
+    }
+
+    try {
+      const response = await apiFetch("/api/auth/register", {
+        method: "POST",
+        body: JSON.stringify({
+          name: formData.name,
+          email: formData.email,
+          password: formData.password,
+          role: formData.role,
+          department: formData.department || "General",
+        }),
+      })
+
+      if (response.ok) {
+        setShowCreateForm(false)
+        setFormData({ name: "", email: "", password: "", role: "student", department: "" })
+        await fetchUsers()
+        toast({
+          variant: "success",
+          title: "Success",
+          description: "User created successfully!",
+        })
+      } else {
+        const data = await response.json()
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: data.message || "Failed to create user",
+        })
+      }
+    } catch (err) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to create user",
+      })
+    }
+  }
+
   const filteredUsers = users.filter((u) =>
     debouncedSearch === ""
       ? true
@@ -148,10 +205,83 @@ export default function AdminUsersPage() {
         <Topbar user={user} />
         <main className="flex-1 overflow-auto p-6">
           <div className="space-y-6">
-            <div>
-              <h1 className="text-3xl font-bold text-foreground">User Management</h1>
-              <p className="text-muted-foreground">Approve or reject pending users</p>
+            <div className="flex justify-between items-center">
+              <div>
+                <h1 className="text-3xl font-bold text-foreground">User Management</h1>
+                <p className="text-muted-foreground">Approve or reject pending users, create new users</p>
+              </div>
+              <Button onClick={() => setShowCreateForm(!showCreateForm)} className="bg-green-600 hover:bg-green-700">
+                + Create New User
+              </Button>
             </div>
+
+            {showCreateForm && (
+              <Card className="bg-muted border-2">
+                <CardHeader>
+                  <CardTitle>Create New User</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="text-sm font-medium mb-1 block">Name *</label>
+                      <Input
+                        value={formData.name}
+                        onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                        placeholder="Full Name"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium mb-1 block">Email *</label>
+                      <Input
+                        type="email"
+                        value={formData.email}
+                        onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                        placeholder="email@example.com"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium mb-1 block">Password *</label>
+                      <Input
+                        type="password"
+                        value={formData.password}
+                        onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                        placeholder="Password"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium mb-1 block">Role *</label>
+                      <select
+                        value={formData.role}
+                        onChange={(e) => setFormData({ ...formData, role: e.target.value })}
+                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                      >
+                        <option value="student">Student</option>
+                        <option value="teacher">Teacher</option>
+                        <option value="admin">Admin</option>
+                        <option value="staff">Staff</option>
+                        <option value="user">User</option>
+                      </select>
+                    </div>
+                    <div className="md:col-span-2">
+                      <label className="text-sm font-medium mb-1 block">Department</label>
+                      <Input
+                        value={formData.department}
+                        onChange={(e) => setFormData({ ...formData, department: e.target.value })}
+                        placeholder="Department (optional)"
+                      />
+                    </div>
+                  </div>
+                  <div className="flex gap-2 pt-2">
+                    <Button onClick={handleCreateUser} className="bg-green-600 hover:bg-green-700">
+                      Create User
+                    </Button>
+                    <Button onClick={() => setShowCreateForm(false)} variant="outline">
+                      Cancel
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
 
             <SearchInput placeholder="Search users by name or email..." value={searchQuery} onChange={setSearchQuery} />
 
