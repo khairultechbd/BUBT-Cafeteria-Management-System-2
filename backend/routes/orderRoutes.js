@@ -92,7 +92,7 @@ router.post("/", protect, async (req, res) => {
       return res.status(500).json({ message: "Order creation failed", error: `Database connection error: ${err.message}` })
     }
 
-    // Save full food snapshot
+    // Save full food snapshot with all required fields
     const order = new Order({
       userId: req.user.id,
       productId,
@@ -100,7 +100,7 @@ router.post("/", protect, async (req, res) => {
       totalPrice,
       status: "pending",
       orderDate: orderDate,
-      // Food snapshot
+      // Food snapshot - all required fields
       foodId: product._id,
       foodName: product.name,
       foodPrice: product.price,
@@ -110,7 +110,11 @@ router.post("/", protect, async (req, res) => {
       tableNumber: tableNumber || null,
       roomNumber: roomNumber || null,
       orderTime: orderDate,
+      orderStatus: "pending", // Also save as orderStatus for compatibility
     })
+    
+    // Ensure orderStatus is synced with status
+    order.orderStatus = order.status
 
     await order.save()
     
@@ -160,49 +164,60 @@ router.post("/", protect, async (req, res) => {
   }
 })
 
-// Get user's orders
+// Get user's orders - query across all databases since orders are fragmented by time
 router.get("/my-orders", protect, async (req, res) => {
   try {
-    const userDbKey = req.user.dbKey || "db2"
-    const Order = await getOrderModel(userDbKey)
-    const ProductDb1 = await getProductModel("db1")
+    const allOrders = []
     
-    const orders = await Order.find({ userId: req.user.id })
-      .sort({ createdAt: -1 })
-    
-    // Manually populate products from db1
-    for (const order of orders) {
-      if (order.productId) {
-        try {
-          // Extract productId - could be ObjectId, string, or populated object
-          let productId = null
-          if (order.productId._id) {
-            productId = order.productId._id
-          } else if (typeof order.productId === 'string') {
-            productId = order.productId
-          } else if (order.productId.toString) {
-            productId = order.productId.toString()
-          }
-          
-          if (productId) {
-            const product = await ProductDb1.findById(productId)
-            if (product) {
-              order.productId = product.toObject()
-            } else {
-              order.productId = null
-            }
-          } else {
-            order.productId = null
-          }
-        } catch (err) {
-          order.productId = null
-        }
-      } else {
-        order.productId = null
+    // Query all databases for user's orders
+    for (const dbKey of ["db1", "db2", "db3"]) {
+      try {
+        const Order = await getOrderModel(dbKey)
+        const userOrders = await Order.find({ userId: req.user.id })
+          .sort({ createdAt: -1 })
+        allOrders.push(...userOrders.map(order => ({ ...order.toObject(), _sourceDb: dbKey })))
+      } catch (err) {
+        console.error(`Error querying orders from ${dbKey}:`, err.message)
       }
     }
     
-    res.json(orders)
+    // Sort all orders by creation date (newest first)
+    allOrders.sort((a, b) => new Date(b.createdAt || b.orderTime || 0) - new Date(a.createdAt || a.orderTime || 0))
+    
+    res.json(allOrders)
+  } catch (error) {
+    res.status(500).json({ message: error.message })
+  }
+})
+
+// Get orders by user ID (Admin or same user)
+router.get("/user/:id", protect, async (req, res) => {
+  try {
+    const userId = req.params.id
+    
+    // Only allow users to see their own orders, or admins to see any user's orders
+    if (req.user.role !== "admin" && req.user.id !== userId) {
+      return res.status(403).json({ message: "Not authorized to view this user's orders" })
+    }
+    
+    const allOrders = []
+    
+    // Query all databases for user's orders
+    for (const dbKey of ["db1", "db2", "db3"]) {
+      try {
+        const Order = await getOrderModel(dbKey)
+        const userOrders = await Order.find({ userId })
+          .sort({ createdAt: -1 })
+        allOrders.push(...userOrders.map(order => ({ ...order.toObject(), _sourceDb: dbKey })))
+      } catch (err) {
+        console.error(`Error querying orders from ${dbKey}:`, err.message)
+      }
+    }
+    
+    // Sort all orders by creation date (newest first)
+    allOrders.sort((a, b) => new Date(b.createdAt || b.orderTime || 0) - new Date(a.createdAt || a.orderTime || 0))
+    
+    res.json(allOrders)
   } catch (error) {
     res.status(500).json({ message: error.message })
   }
@@ -412,7 +427,8 @@ router.put("/:id/accept", protect, adminOnly, async (req, res) => {
       return res.status(404).json({ message: "Order not found" })
     }
 
-    record.order.status = "accepted"
+    record.order.status = "preparing"
+    record.order.orderStatus = "preparing" // Keep orderStatus in sync
     await record.order.save()
     
     // Manually populate product from db1
@@ -445,13 +461,13 @@ router.put("/:id/accept", protect, adminOnly, async (req, res) => {
     await createNotification(
       record.order.userId,
       "order_accepted",
-      "Order Accepted",
-      `Your order for ${productName} x${record.order.quantity} has been accepted!`,
+      "Order Preparing",
+      `Your order for ${productName} x${record.order.quantity} is now being prepared!`,
       record.order._id,
       record.dbKey
     )
 
-    res.json({ message: "Order accepted", order: record.order })
+    res.json({ message: "Order accepted and preparing", order: record.order })
   } catch (error) {
     res.status(500).json({ message: error.message })
   }
@@ -516,8 +532,15 @@ router.put("/:id/status", protect, adminOnly, async (req, res) => {
   try {
     const { status } = req.body
 
-    if (!["pending", "accepted", "rejected", "served", "completed"].includes(status)) {
-      return res.status(400).json({ message: "Invalid status" })
+    // Map old statuses for backward compatibility
+    const statusMap = {
+      "accepted": "preparing",
+      "served": "ready"
+    }
+    const mappedStatus = statusMap[status] || status
+
+    if (!["pending", "preparing", "ready", "completed"].includes(mappedStatus)) {
+      return res.status(400).json({ message: "Invalid status. Must be: pending, preparing, ready, or completed" })
     }
 
     const record = await findOrderById(req.params.id)
@@ -526,11 +549,12 @@ router.put("/:id/status", protect, adminOnly, async (req, res) => {
       return res.status(404).json({ message: "Order not found" })
     }
 
-    record.order.status = status
+    record.order.status = mappedStatus
+    record.order.orderStatus = mappedStatus // Keep orderStatus in sync
     await record.order.save()
     
     // Manually populate product from db1 if we need to create notification
-    if (status === "served") {
+    if (mappedStatus === "ready") {
       const ProductDb1 = await getProductModel("db1")
       let productName = "your order"
       try {
@@ -556,7 +580,7 @@ router.put("/:id/status", protect, adminOnly, async (req, res) => {
         console.error("Error fetching product for notification:", err)
       }
 
-      // Create notification if status is served
+      // Create notification if status is ready
       await createNotification(
         record.order.userId,
         "order_served",

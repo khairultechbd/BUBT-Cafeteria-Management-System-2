@@ -13,8 +13,8 @@ dotenv.config({ path: path.resolve(__dirname, "../.env") })
 const [,, nameArg, emailArg, passwordArg] = process.argv
 
 const name = nameArg || "Admin User"
-const email = emailArg || "admin@cafeteria.local"
-const password = passwordArg || "Admin@12345"
+const email = emailArg || "admin@gmail.com"
+const password = passwordArg || "admin@gmail.com"
 
 if (!email || !password) {
   console.error("Usage: node scripts/createAdmin.js [name] <email> <password>")

@@ -5,21 +5,34 @@ import { getConnection } from "../config/dbManager.js"
 const modelCache = {}
 
 // Helper function to get collection name based on model type and database
-const getCollectionName = (modelName, dbKey) => {
-  const fragNum = dbKey === "db1" ? "1" : dbKey === "db2" ? "2" : "3"
-  
+// Returns meaningful collection names based on fragmentation strategy
+const getCollectionName = (modelName, dbKey, additionalData = {}) => {
   if (modelName === "User") {
-    return `User_Frag${fragNum}`
+    // Users are fragmented by role: student→db1, teacher→db2, admin/staff→db3
+    if (dbKey === "db1") return "user_student"
+    if (dbKey === "db2") return "user_teacher"
+    if (dbKey === "db3") return "user_staff"
+    return "users" // fallback
   } else if (modelName === "Product") {
-    return `Menu_Frag${fragNum}`
+    // Products are fragmented by timeCategory: morning→db1, day→db2, evening→db3
+    if (dbKey === "db1") return "food_morning"
+    if (dbKey === "db2") return "food_lunch"
+    if (dbKey === "db3") return "food_evening"
+    return "foods" // fallback
   } else if (modelName === "Order") {
-    return `Order_Frag${fragNum}`
+    // Orders are fragmented by time: morning→db1, lunch→db2, evening→db3
+    // For today's orders vs history, we can use the same collections
+    // or differentiate based on date if needed
+    if (dbKey === "db1") return "orders_today" // morning orders
+    if (dbKey === "db2") return "orders_today" // lunch orders
+    if (dbKey === "db3") return "orders_today" // evening orders
+    return "orders" // fallback
   } else if (modelName === "Notification") {
-    return `Notification_Frag${fragNum}`
+    return "notifications"
   }
   
   // Fallback to original model name if not mapped
-  return modelName
+  return modelName.toLowerCase() + "s"
 }
 
 // Create or get a model for a specific database connection
@@ -54,11 +67,17 @@ export const getModel = async (modelName, schema, dbKey) => {
   // Check if model already exists on this connection
   let model = conn.models[collectionName]
   if (!model) {
-    // Also check standard model name (e.g., 'Product')
-    if (modelName === 'Product' && !conn.models['Product']) {
-      model = conn.model('Product', schema)
+    // Check mongoose.models to prevent "Schema hasn't been registered" errors
+    const globalModelKey = `${conn.name}_${collectionName}`
+    if (mongoose.models && mongoose.models[globalModelKey]) {
+      model = mongoose.models[globalModelKey]
     } else {
-      model = conn.model(collectionName, schema)
+      // Also check standard model name (e.g., 'Product')
+      if (modelName === 'Product' && !conn.models['Product']) {
+        model = conn.model('Product', schema)
+      } else {
+        model = conn.model(collectionName, schema)
+      }
     }
   }
   

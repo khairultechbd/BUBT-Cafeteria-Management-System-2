@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input"
 import { SearchInput } from "@/components/search-input"
 import { useDebounce } from "@/hooks/use-debounce"
 import { useToast } from "@/hooks/use-toast"
-import { apiFetch } from "@/lib/api"
+import { apiFetch, getApiBaseUrl } from "@/lib/api"
 
 interface FoodItem {
   _id?: string
@@ -377,17 +377,58 @@ export default function AdminFoodItemsPage() {
                               type="file"
                               accept="image/*"
                               className="hidden"
-                              onChange={(e) => {
+                              onChange={async (e) => {
                                 const file = e.target.files?.[0]
                                 if (file) {
                                   setImageFile(file)
-                                  const reader = new FileReader()
-                                  reader.onloadend = () => {
-                                    const base64String = reader.result as string
-                                    setImagePreview(base64String)
-                                    setFormData({ ...formData, image: base64String })
+                                  
+                                  // Upload file to backend
+                                  try {
+                                    const formData = new FormData()
+                                    formData.append("image", file)
+                                    
+                                    const token = localStorage.getItem("token")
+                                    const backendUrl = getApiBaseUrl()
+                                    
+                                    const response = await fetch(`${backendUrl}/api/products/upload`, {
+                                      method: "POST",
+                                      headers: {
+                                        Authorization: `Bearer ${token}`,
+                                      },
+                                      body: formData,
+                                    })
+                                    
+                                    if (response.ok) {
+                                      const data = await response.json()
+                                      // Auto-fill image URL with the returned path
+                                      const imageUrl = data.imageUrl
+                                      setFormData({ ...formData, image: imageUrl })
+                                      
+                                      // Set preview using the uploaded image URL
+                                      const fullImageUrl = `${backendUrl}${imageUrl}`
+                                      setImagePreview(fullImageUrl)
+                                      
+                                      toast({
+                                        variant: "success",
+                                        title: "Image uploaded",
+                                        description: "Image uploaded successfully!",
+                                      })
+                                    } else {
+                                      const errorData = await response.json().catch(() => ({}))
+                                      toast({
+                                        variant: "destructive",
+                                        title: "Upload failed",
+                                        description: errorData.message || "Failed to upload image",
+                                      })
+                                    }
+                                  } catch (err: any) {
+                                    console.error("Image upload error:", err)
+                                    toast({
+                                      variant: "destructive",
+                                      title: "Upload failed",
+                                      description: err.message || "Failed to upload image",
+                                    })
                                   }
-                                  reader.readAsDataURL(file)
                                 }
                               }}
                             />

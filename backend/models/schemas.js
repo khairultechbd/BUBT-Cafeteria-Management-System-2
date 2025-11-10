@@ -112,7 +112,7 @@ export const orderSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ["pending", "accepted", "rejected", "served", "completed"],
+      enum: ["pending", "preparing", "ready", "completed"],
       default: "pending",
     },
     totalPrice: {
@@ -153,6 +153,11 @@ export const orderSchema = new mongoose.Schema(
     orderTime: {
       type: Date,
       default: Date.now,
+    },
+    orderStatus: {
+      type: String,
+      enum: ["pending", "preparing", "ready", "completed"],
+      default: "pending",
     },
   },
   { timestamps: true },
