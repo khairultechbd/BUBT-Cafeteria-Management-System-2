@@ -132,6 +132,55 @@ export const getDatabaseForUser = (userData) => {
   return getDatabaseKey(userData)
 }
 
+// Get database key for food menu based on time category
+export const getDatabaseForMenu = (timeCategory) => {
+  if (!timeCategory) {
+    throw new Error("Missing timeCategory - cannot determine database for menu")
+  }
+  
+  const category = timeCategory.toLowerCase()
+  
+  // Map time categories to databases
+  if (category === "morning") {
+    return "db1"
+  } else if (category === "day") {
+    return "db2" // Lunch items go to db2
+  } else if (category === "evening") {
+    return "db3"
+  }
+  
+  throw new Error(`Invalid timeCategory: ${timeCategory}. Must be: morning, day, or evening`)
+}
+
+// Get database key for order based on order time
+export const getDatabaseForOrder = (orderDate) => {
+  if (!orderDate) {
+    throw new Error("Missing orderDate - cannot determine database for order")
+  }
+  
+  // Handle both Date objects and date strings
+  const date = orderDate instanceof Date ? orderDate : new Date(orderDate)
+  
+  // Validate date
+  if (isNaN(date.getTime())) {
+    throw new Error(`Invalid orderDate: ${orderDate} - cannot parse date`)
+  }
+  
+  const hour = date.getHours()
+  
+  // Fragment by time of day:
+  // Morning: < 11:00 AM → db1
+  // Lunch: 11:00 AM - 3:00 PM (11-15) → db2
+  // Evening: > 3:00 PM (15) → db3
+  if (hour < 11) {
+    return "db1" // Morning orders
+  } else if (hour >= 11 && hour <= 15) {
+    return "db2" // Lunch orders
+  } else {
+    return "db3" // Evening orders
+  }
+}
+
 // Get all database connections
 export const getAllConnections = () => {
   return connections
@@ -154,6 +203,8 @@ export default {
   connectAllDatabases,
   getConnection,
   getDatabaseForUser,
+  getDatabaseForMenu,
+  getDatabaseForOrder,
   getAllConnections,
   closeAllConnections,
 }

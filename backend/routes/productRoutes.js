@@ -2,6 +2,7 @@ import express from "express"
 import { protect, adminOnly } from "../middleware/authMiddleware.js"
 import { getProductModel, queryAllDatabases } from "../utils/modelFactory.js"
 import { productSchema } from "../models/schemas.js"
+import { getDatabaseForMenu } from "../config/dbManager.js"
 
 const router = express.Router()
 
@@ -68,11 +69,12 @@ router.get("/:id", async (req, res) => {
   }
 })
 
-// Create product (Admin only) - store in db1
+// Create product (Admin only) - fragmented by timeCategory
 router.post("/", protect, adminOnly, async (req, res) => {
   try {
     const { name, description, price, category, timeCategory, image } = req.body
 
+    // Validate required fields
     if (!name || !price || !timeCategory) {
       return res.status(400).json({ message: "Name, price, and timeCategory are required" })
     }
@@ -81,8 +83,21 @@ router.post("/", protect, adminOnly, async (req, res) => {
       return res.status(400).json({ message: "timeCategory must be: morning, day, or evening" })
     }
 
-    // Products stored in db1
-    const Product = await getProductModel("db1")
+    // Determine target database based on timeCategory
+    let dbKey
+    try {
+      dbKey = getDatabaseForMenu(timeCategory)
+      if (!dbKey) {
+        throw new Error(`No database found for timeCategory=${timeCategory}`)
+      }
+    } catch (err) {
+      console.error(`[FoodFragmentation] Error determining database:`, err.message)
+      return res.status(500).json({ message: "Add food failed", error: err.message })
+    }
+
+    // Get product model for the correct database
+    const Product = await getProductModel(dbKey)
+    
     const product = new Product({
       name,
       description,
@@ -94,9 +109,14 @@ router.post("/", protect, adminOnly, async (req, res) => {
     })
 
     await product.save()
-    res.status(201).json({ message: "Product created", product })
+    
+    // Log successful insertion
+    console.log(`[FoodFragmentation] Inserting ${name} (timeCategory: ${timeCategory}) into ${dbKey}`)
+    
+    res.status(201).json({ message: "Food item added successfully", data: product })
   } catch (error) {
-    res.status(500).json({ message: error.message })
+    console.error(`[FoodFragmentation] Error creating product:`, error.message)
+    res.status(500).json({ message: "Add food failed", error: error.message })
   }
 })
 

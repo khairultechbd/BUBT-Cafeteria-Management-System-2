@@ -40,7 +40,15 @@ export default function AdminFoodItemsPage() {
   const [loading, setLoading] = useState(true)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState<string>("")
+  const [selectedTimeCategory, setSelectedTimeCategory] = useState<string>("all")
   const debouncedSearch = useDebounce(searchQuery, 300)
+
+  const timeCategories = [
+    { value: "all", label: "All", emoji: "🍽️" },
+    { value: "morning", label: "Morning", emoji: "🌅" },
+    { value: "day", label: "Lunch", emoji: "🍛" },
+    { value: "evening", label: "Evening", emoji: "🌆" },
+  ]
   const [formData, setFormData] = useState({
     name: "",
     price: 0,
@@ -72,7 +80,13 @@ export default function AdminFoodItemsPage() {
 
   const fetchFoodItems = async () => {
     try {
-      const response = await apiFetch("/api/products")
+      const url = selectedTimeCategory === "all" 
+        ? "/api/products" 
+        : `/api/products/time/${selectedTimeCategory}`
+      
+      const response = await apiFetch(url, {
+        method: "GET",
+      })
       if (response.ok) {
         const data = await response.json()
         setFoodItems(data)
@@ -83,6 +97,12 @@ export default function AdminFoodItemsPage() {
       setLoading(false)
     }
   }
+
+  useEffect(() => {
+    if (user) {
+      fetchFoodItems()
+    }
+  }, [selectedTimeCategory, user])
 
   const handleEdit = (item: FoodItem) => {
     setEditingId(item.id || item._id || null)
@@ -259,6 +279,21 @@ export default function AdminFoodItemsPage() {
               value={searchQuery}
               onChange={setSearchQuery}
             />
+
+            {/* Time Category Filter Buttons */}
+            <div className="flex gap-2 flex-wrap">
+              {timeCategories.map((category) => (
+                <Button
+                  key={category.value}
+                  onClick={() => setSelectedTimeCategory(category.value)}
+                  variant={selectedTimeCategory === category.value ? "default" : "outline"}
+                  className="capitalize"
+                >
+                  <span className="mr-2">{category.emoji}</span>
+                  {category.label}
+                </Button>
+              ))}
+            </div>
 
             {/* Add/Edit Form */}
             {editingId && (

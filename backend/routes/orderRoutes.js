@@ -3,6 +3,7 @@ import { protect, adminOnly } from "../middleware/authMiddleware.js"
 import { getOrderModel, getProductModel, getNotificationModel, queryAllDatabases } from "../utils/modelFactory.js"
 import { orderSchema, productSchema } from "../models/schemas.js"
 import { getUserModel } from "../utils/modelFactory.js"
+import { getDatabaseForOrder, getDatabaseForUser } from "../config/dbManager.js"
 
 const router = express.Router()
 
@@ -65,9 +66,23 @@ router.post("/", protect, async (req, res) => {
 
     const totalPrice = product.price * quantity
 
-    // Get user's database
-    const userDbKey = req.user.dbKey || "db2"
-    const Order = await getOrderModel(userDbKey)
+    // Determine database for order based on order time (fragmentation by time)
+    const orderDate = new Date()
+    let orderDbKey
+    try {
+      orderDbKey = getDatabaseForOrder(orderDate)
+      if (!orderDbKey) {
+        throw new Error(`Invalid order_time (${orderDate}) — cannot determine DB.`)
+      }
+    } catch (err) {
+      console.error(`[OrderFragmentation] Error determining database:`, err.message)
+      return res.status(500).json({ message: "Order creation failed", error: err.message })
+    }
+
+    // Get user's database for notifications (still use user's DB for user notifications)
+    const userDbKey = req.user.dbKey || getDatabaseForUser({ role: req.user.role, email: req.user.email }) || "db2"
+    
+    const Order = await getOrderModel(orderDbKey)
 
     const order = new Order({
       userId: req.user.id,
@@ -75,10 +90,13 @@ router.post("/", protect, async (req, res) => {
       quantity,
       totalPrice,
       status: "pending",
-      orderDate: new Date(),
+      orderDate: orderDate,
     })
 
     await order.save()
+    
+    // Log successful insertion
+    console.log(`[OrderFragmentation] Inserting order ${order._id} into ${orderDbKey} at ${orderDate.toISOString()}`)
 
     // Populate product details
     await order.populate("productId")
