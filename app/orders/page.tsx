@@ -57,13 +57,30 @@ export default function OrdersPage() {
       return
     }
 
-    setUser(JSON.parse(userData))
-    fetchOrders()
+    const parsed = JSON.parse(userData)
+    setUser(parsed)
+    fetchOrders(parsed.id)
+
+    // Auto-refresh: poll every 20s and on page focus
+    const interval = setInterval(() => fetchOrders(parsed.id), 20000)
+    const onVisibility = () => {
+      if (document.visibilityState === "visible") {
+        fetchOrders(parsed.id)
+      }
+    }
+    document.addEventListener("visibilitychange", onVisibility)
+
+    return () => {
+      clearInterval(interval)
+      document.removeEventListener("visibilitychange", onVisibility)
+    }
   }, [router])
 
-  const fetchOrders = async () => {
+  const fetchOrders = async (userId?: string) => {
     try {
-      const response = await apiFetch("/api/orders/my-orders")
+      const id = userId || user?.id
+      if (!id) return
+      const response = await apiFetch(`/api/orders/user/${id}`)
       if (response.ok) {
         const data = await response.json()
         setOrders(data)

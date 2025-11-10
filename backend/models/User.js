@@ -51,4 +51,8 @@ userSchema.methods.matchPassword = async function (enteredPassword) {
   return await bcrypt.compare(enteredPassword, this.password)
 }
 
-export default mongoose.model("User", userSchema)
+// Use guard to prevent model overwrite, and bind to explicit collection name
+const UserModel =
+	mongoose.models.User || mongoose.model("User", userSchema, "users")
+
+export default UserModel

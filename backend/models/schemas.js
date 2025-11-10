@@ -40,6 +40,10 @@ export const userSchema = new mongoose.Schema(
   { timestamps: true },
 )
 
+// Explicit indexes to enforce uniqueness
+userSchema.index({ email: 1 }, { unique: true })
+userSchema.index({ studentId: 1 }, { unique: true, sparse: true })
+
 // Hash password before saving
 userSchema.pre("save", async function (next) {
   if (!this.isModified("password")) return next()
@@ -112,7 +116,7 @@ export const orderSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ["pending", "accepted", "rejected", "served", "completed"],
+      enum: ["pending", "preparing", "ready", "completed"],
       default: "pending",
     },
     totalPrice: {

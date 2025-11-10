@@ -29,4 +29,8 @@ const orderSchema = new mongoose.Schema(
   { timestamps: true },
 )
 
-export default mongoose.model("Order", orderSchema)
+// Use guard to prevent model overwrite, and bind to explicit collection name
+const OrderModel =
+	mongoose.models.Order || mongoose.model("Order", orderSchema, "orders")
+
+export default OrderModel

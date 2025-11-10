@@ -377,17 +377,26 @@ export default function AdminFoodItemsPage() {
                               type="file"
                               accept="image/*"
                               className="hidden"
-                              onChange={(e) => {
+                              onChange={async (e) => {
                                 const file = e.target.files?.[0]
-                                if (file) {
+                                if (!file) return
+                                try {
                                   setImageFile(file)
-                                  const reader = new FileReader()
-                                  reader.onloadend = () => {
-                                    const base64String = reader.result as string
-                                    setImagePreview(base64String)
-                                    setFormData({ ...formData, image: base64String })
+                                  const form = new FormData()
+                                  form.append("image", file)
+                                  const resp = await apiFetch("/api/upload/image", {
+                                    method: "POST",
+                                    body: form as any,
+                                    headers: {},
+                                  })
+                                  if (resp.ok) {
+                                    const data = await resp.json()
+                                    const url = data.url as string
+                                    setFormData({ ...formData, image: url })
+                                    setImagePreview(url)
                                   }
-                                  reader.readAsDataURL(file)
+                                } catch (_err) {
+                                  // no red toast; keep UI unchanged
                                 }
                               }}
                             />

@@ -30,4 +30,8 @@ const productSchema = new mongoose.Schema(
   { timestamps: true },
 )
 
-export default mongoose.model("Product", productSchema)
+// Use guard to prevent model overwrite, and bind to explicit collection name
+const ProductModel =
+	mongoose.models.Product || mongoose.model("Product", productSchema, "foods")
+
+export default ProductModel

@@ -160,6 +160,31 @@ router.post("/", protect, async (req, res) => {
   }
 })
 
+// Get orders for a specific user id (required endpoint)
+router.get("/user/:id", protect, async (req, res) => {
+  try {
+    const targetUserId = req.params.id
+
+    // Fetch from all databases without populate
+    const orders = await queryAllDatabases(
+      "Order",
+      async (Model) => Model.find({ userId: targetUserId }).sort({ orderTime: -1, createdAt: -1 }),
+      orderSchema,
+    )
+
+    // Sort by explicit orderTime if present, otherwise by createdAt
+    orders.sort((a, b) => {
+      const aTime = a.orderTime || a.createdAt || 0
+      const bTime = b.orderTime || b.createdAt || 0
+      return new Date(bTime) - new Date(aTime)
+    })
+
+    res.json(orders)
+  } catch (error) {
+    res.status(500).json({ message: error.message })
+  }
+})
+
 // Get user's orders
 router.get("/my-orders", protect, async (req, res) => {
   try {
@@ -403,7 +428,7 @@ const findOrderById = async (orderId) => {
   return null
 }
 
-// Approve order (Admin only)
+// Approve order (Admin only) → set to 'preparing'
 router.put("/:id/accept", protect, adminOnly, async (req, res) => {
   try {
     const record = await findOrderById(req.params.id)
@@ -412,7 +437,7 @@ router.put("/:id/accept", protect, adminOnly, async (req, res) => {
       return res.status(404).json({ message: "Order not found" })
     }
 
-    record.order.status = "accepted"
+    record.order.status = "preparing"
     await record.order.save()
     
     // Manually populate product from db1
@@ -457,7 +482,7 @@ router.put("/:id/accept", protect, adminOnly, async (req, res) => {
   }
 })
 
-// Reject order (Admin only)
+// Reject order (Admin only) → keep for compatibility; set to 'completed' with zero quantity? Here we mark as completed flow is not applicable. We'll map to 'completed' with no notification.
 router.put("/:id/reject", protect, adminOnly, async (req, res) => {
   try {
     const record = await findOrderById(req.params.id)
@@ -466,7 +491,7 @@ router.put("/:id/reject", protect, adminOnly, async (req, res) => {
       return res.status(404).json({ message: "Order not found" })
     }
 
-    record.order.status = "rejected"
+    record.order.status = "completed"
     await record.order.save()
     
     // Manually populate product from db1
@@ -516,7 +541,7 @@ router.put("/:id/status", protect, adminOnly, async (req, res) => {
   try {
     const { status } = req.body
 
-    if (!["pending", "accepted", "rejected", "served", "completed"].includes(status)) {
+    if (!["pending", "preparing", "ready", "completed"].includes(status)) {
       return res.status(400).json({ message: "Invalid status" })
     }
 
@@ -529,8 +554,8 @@ router.put("/:id/status", protect, adminOnly, async (req, res) => {
     record.order.status = status
     await record.order.save()
     
-    // Manually populate product from db1 if we need to create notification
-    if (status === "served") {
+    // Notify user when order is ready
+    if (status === "ready") {
       const ProductDb1 = await getProductModel("db1")
       let productName = "your order"
       try {
@@ -556,7 +581,7 @@ router.put("/:id/status", protect, adminOnly, async (req, res) => {
         console.error("Error fetching product for notification:", err)
       }
 
-      // Create notification if status is served
+      // Create notification if status is ready
       await createNotification(
         record.order.userId,
         "order_served",
