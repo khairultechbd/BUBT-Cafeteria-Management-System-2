@@ -107,19 +107,19 @@ export default function DashboardPage() {
               <CardContent className="space-y-2">
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Name:</span>
-                  <span className="font-medium">{user.name}</span>
+                  <span className="font-medium text-gray-900 dark:text-gray-100">{user.name}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Email:</span>
-                  <span className="font-medium">{user.email}</span>
+                  <span className="font-medium text-gray-900 dark:text-gray-100">{user.email}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Role:</span>
-                  <span className="font-medium capitalize">{user.role}</span>
+                  <span className="font-medium capitalize text-gray-900 dark:text-gray-100">{user.role}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Status:</span>
-                  <span className="font-medium capitalize">{user.status}</span>
+                  <span className="font-medium capitalize text-gray-900 dark:text-gray-100">{user.status}</span>
                 </div>
               </CardContent>
             </Card>

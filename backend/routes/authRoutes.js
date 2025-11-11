@@ -32,7 +32,7 @@ const findUserAcrossDatabases = async (email) => {
 // Register
 router.post("/register", async (req, res) => {
   try {
-    const { name, email, password, department, role } = req.body
+    const { name, email, password, department, role, studentId } = req.body
 
     if (!name || !email || !password) {
       return res.status(400).json({ message: "All fields are required" })
@@ -43,6 +43,26 @@ router.post("/register", async (req, res) => {
     const userRole = role || "user"
     if (role && !validRoles.includes(userRole.toLowerCase())) {
       return res.status(400).json({ message: `Invalid role. Must be one of: ${validRoles.join(", ")}` })
+    }
+
+    // If role is student, require studentId
+    if (userRole.toLowerCase() === "student") {
+      if (!studentId) {
+        return res.status(400).json({ message: "Student ID is required for students" })
+      }
+
+      // Check if studentId already exists across all databases
+      for (const dbKey of ["db1", "db2", "db3"]) {
+        try {
+          const User = await getUserModel(dbKey)
+          const existingStudent = await User.findOne({ studentId })
+          if (existingStudent) {
+            return res.status(400).json({ message: "Student ID already exists. Cannot create multiple accounts with the same ID." })
+          }
+        } catch (error) {
+          console.error(`Error checking studentId in ${dbKey}:`, error.message)
+        }
+      }
     }
 
     // Check if user exists across all databases
@@ -58,25 +78,45 @@ router.post("/register", async (req, res) => {
     // Get the User model for the selected database
     const User = await getUserModel(dbKey)
 
-    // Create new user (status = pending by default)
-    const user = new User({
+    // Auto-approve students, keep others pending
+    const initialStatus = userRole.toLowerCase() === "student" ? "active" : "pending"
+
+    // Create new user
+    const userDataToSave = {
       name,
       email,
       password,
       role: userRole.toLowerCase(),
-      status: "pending",
+      status: initialStatus,
       department: department || "General",
-    })
+    }
+
+    // Add studentId only if role is student
+    if (userRole.toLowerCase() === "student" && studentId) {
+      userDataToSave.studentId = studentId
+    }
+
+    const user = new User(userDataToSave)
 
     await user.save()
 
     // Log with collection name
     const collectionName = dbKey === "db1" ? "User_Frag1" : dbKey === "db2" ? "User_Frag2" : "User_Frag3"
-    console.log(`[UserCreation] ✅ Created user ${email} with role ${userRole} in ${dbKey} → Collection: ${collectionName}`)
+    console.log(`[UserCreation] ✅ Created user ${email} with role ${userRole} in ${dbKey} → Collection: ${collectionName} (Status: ${initialStatus})`)
+
+    // Generate token for students (auto-login)
+    let token = null
+    if (initialStatus === "active") {
+      token = generateToken(user._id, user.role, dbKey)
+    }
 
     res.status(201).json({
-      message: "User created successfully!",
+      message: initialStatus === "active" 
+        ? "Signup successful! You can login now" 
+        : "Signup successful! Pending admin approval",
       success: true,
+      autoLogin: initialStatus === "active",
+      token, // Include token for students
       user: {
         id: user._id,
         name: user.name,

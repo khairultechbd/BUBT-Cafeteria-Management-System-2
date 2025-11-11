@@ -42,7 +42,7 @@ const createNotification = async (userId, type, title, message, orderId = null, 
 // Create order (User)
 router.post("/", protect, async (req, res) => {
   try {
-    const { productId, quantity } = req.body
+    const { productId, quantity, tableNumber, roomNumber } = req.body
 
     if (!productId || !quantity) {
       return res.status(400).json({ message: "Product ID and quantity required" })
@@ -92,6 +92,7 @@ router.post("/", protect, async (req, res) => {
       return res.status(500).json({ message: "Order creation failed", error: `Database connection error: ${err.message}` })
     }
 
+    // Save full food snapshot
     const order = new Order({
       userId: req.user.id,
       productId,
@@ -99,6 +100,16 @@ router.post("/", protect, async (req, res) => {
       totalPrice,
       status: "pending",
       orderDate: orderDate,
+      // Food snapshot
+      foodId: product._id,
+      foodName: product.name,
+      foodPrice: product.price,
+      foodImage: product.image || "/placeholder.svg",
+      foodCategory: product.category || "Food",
+      timeSlot: product.timeCategory || "day",
+      tableNumber: tableNumber || null,
+      roomNumber: roomNumber || null,
+      orderTime: orderDate,
     })
 
     await order.save()
@@ -139,9 +150,9 @@ router.post("/", protect, async (req, res) => {
       userDbKey
     )
 
-    res.status(201).json({ 
-      message: "Order created successfully!", 
+    res.status(200).json({ 
       success: true,
+      message: "Order placed successfully",
       order 
     })
   } catch (error) {

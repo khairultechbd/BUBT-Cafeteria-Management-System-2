@@ -52,7 +52,15 @@ export const getModel = async (modelName, schema, dbKey) => {
   
   // Create model on this specific connection with collection name
   // Check if model already exists on this connection
-  const model = conn.models[collectionName] || conn.model(collectionName, schema)
+  let model = conn.models[collectionName]
+  if (!model) {
+    // Also check standard model name (e.g., 'Product')
+    if (modelName === 'Product' && !conn.models['Product']) {
+      model = conn.model('Product', schema)
+    } else {
+      model = conn.model(collectionName, schema)
+    }
+  }
   
   // Log collection usage
   console.log(`[CollectionNaming] Using collection ${collectionName} in ${dbKey} for model ${modelName}`)

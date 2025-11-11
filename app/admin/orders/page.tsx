@@ -382,7 +382,7 @@ export default function AdminOrdersPage() {
                     <CardContent className="space-y-4">
                       {/* Customer Info */}
                       <div className="bg-muted p-3 rounded-lg">
-                        <p className="text-sm font-medium text-foreground">{getOrderUserName(order)}</p>
+                        <p className="text-sm font-medium text-foreground text-gray-900 dark:text-gray-100">{getOrderUserName(order)}</p>
                         <p className="text-sm text-muted-foreground">{getOrderUserEmail(order)}</p>
                       </div>
 
@@ -390,20 +390,20 @@ export default function AdminOrdersPage() {
                       <div className="space-y-2 border-t pt-3">
                         <div className="flex justify-between text-sm">
                           <span className="text-muted-foreground">Product:</span>
-                          <span className="font-medium">{getProductName(order) || "Product Deleted"}</span>
+                          <span className="font-medium text-gray-900 dark:text-gray-100">{getProductName(order) || "Product Deleted"}</span>
                         </div>
                         <div className="flex justify-between text-sm">
                           <span className="text-muted-foreground">Quantity:</span>
-                          <span className="font-medium">{order.quantity || 1}</span>
+                          <span className="font-medium text-gray-900 dark:text-gray-100">{order.quantity || 1}</span>
                         </div>
                         <div className="flex justify-between text-sm">
                           <span className="text-muted-foreground">Unit Price:</span>
-                          <span className="font-medium">
+                          <span className="font-medium text-gray-900 dark:text-gray-100">
                             {getProductPrice(order) > 0 ? `৳${getProductPrice(order)}` : "N/A"}
                           </span>
                         </div>
                         <div className="flex justify-between text-base font-bold border-t pt-2">
-                          <span>Total:</span>
+                          <span className="text-gray-900 dark:text-gray-100">Total:</span>
                           <span className="text-primary">৳{order.totalPrice || 0}</span>
                         </div>
                       </div>

@@ -18,6 +18,7 @@ export default function SignupPage() {
     role: "student",
     password: "",
     confirmPassword: "",
+    studentId: "",
   })
   const [error, setError] = useState("")
   const [loading, setLoading] = useState(false)
@@ -47,6 +48,7 @@ export default function SignupPage() {
           email: formData.email,
           role: formData.role,
           password: formData.password,
+          studentId: formData.role === "student" ? formData.studentId : undefined,
         }),
       })
 
@@ -68,10 +70,18 @@ export default function SignupPage() {
         return
       }
 
-      // Backend returns message but no token (user needs admin approval)
-      // Redirect to login page with success message
-      console.log("Signup successful, redirecting...")
-      router.push("/login?message=Registration successful! Please wait for admin approval.")
+      // Check if user is auto-approved (student) or needs approval
+      if (data.autoLogin && data.token) {
+        // Student: Auto-login
+        console.log("Student signup successful, auto-login...")
+        localStorage.setItem("token", data.token)
+        localStorage.setItem("user", JSON.stringify(data.user))
+        router.push("/dashboard")
+      } else {
+        // Teacher/Admin/Staff: Redirect to login with approval message
+        console.log("Signup successful, redirecting to login...")
+        router.push("/login?message=Registration successful! Please wait for admin approval.")
+      }
     } catch (err: any) {
       console.error("Signup error:", err)
       if (err.name === "TypeError" && err.message?.includes("fetch")) {
@@ -129,10 +139,22 @@ export default function SignupPage() {
               >
                 <option value="student">Student</option>
                 <option value="teacher">Teacher</option>
-                <option value="admin">Admin</option>
                 <option value="staff">Staff</option>
               </select>
             </div>
+            {formData.role === "student" && (
+              <div>
+                <label className="block text-sm font-medium mb-1">Student ID *</label>
+                <Input
+                  type="text"
+                  name="studentId"
+                  value={formData.studentId}
+                  onChange={handleChange}
+                  placeholder="Enter your student ID"
+                  required
+                />
+              </div>
+            )}
             <div>
               <label className="block text-sm font-medium mb-1">Password</label>
               <Input

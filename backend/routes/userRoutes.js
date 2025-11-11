@@ -146,4 +146,69 @@ router.put("/:id/reject", protect, adminOnly, async (req, res) => {
   }
 })
 
+// Update user (Admin only)
+router.put("/:id", protect, adminOnly, async (req, res) => {
+  try {
+    const record = await findUserById(req.params.id)
+    if (!record) {
+      return res.status(404).json({ message: "User not found" })
+    }
+
+    const { name, email, role, status, department, studentId } = req.body
+
+    if (name) record.user.name = name
+    if (email) record.user.email = email
+    if (role) record.user.role = role
+    if (status) record.user.status = status
+    if (department !== undefined) record.user.department = department
+    if (studentId !== undefined) record.user.studentId = studentId
+
+    await record.user.save()
+
+    res.json({ message: "User updated successfully", user: serializeUser(record.user, record.dbKey) })
+  } catch (error) {
+    res.status(500).json({ message: error.message })
+  }
+})
+
+// Change user password (Admin only)
+router.put("/:id/password", protect, adminOnly, async (req, res) => {
+  try {
+    const record = await findUserById(req.params.id)
+    if (!record) {
+      return res.status(404).json({ message: "User not found" })
+    }
+
+    const { password } = req.body
+
+    if (!password) {
+      return res.status(400).json({ message: "Password is required" })
+    }
+
+    record.user.password = password
+    await record.user.save()
+
+    res.json({ message: "Password updated successfully" })
+  } catch (error) {
+    res.status(500).json({ message: error.message })
+  }
+})
+
+// Delete user (Admin only)
+router.delete("/:id", protect, adminOnly, async (req, res) => {
+  try {
+    const record = await findUserById(req.params.id)
+    if (!record) {
+      return res.status(404).json({ message: "User not found" })
+    }
+
+    const User = await getUserModel(record.dbKey)
+    await User.findByIdAndDelete(req.params.id)
+
+    res.json({ message: "User deleted successfully" })
+  } catch (error) {
+    res.status(500).json({ message: error.message })
+  }
+})
+
 export default router

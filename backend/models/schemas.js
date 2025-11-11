@@ -31,6 +31,11 @@ export const userSchema = new mongoose.Schema(
       type: String,
       default: "General",
     },
+    studentId: {
+      type: String,
+      unique: true,
+      sparse: true,
+    },
   },
   { timestamps: true },
 )
@@ -115,6 +120,37 @@ export const orderSchema = new mongoose.Schema(
       required: true,
     },
     orderDate: {
+      type: Date,
+      default: Date.now,
+    },
+    // Food snapshot fields
+    foodId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Product",
+    },
+    foodName: {
+      type: String,
+    },
+    foodPrice: {
+      type: Number,
+    },
+    foodImage: {
+      type: String,
+    },
+    foodCategory: {
+      type: String,
+    },
+    timeSlot: {
+      type: String,
+      enum: ["morning", "day", "evening"],
+    },
+    tableNumber: {
+      type: String,
+    },
+    roomNumber: {
+      type: String,
+    },
+    orderTime: {
       type: Date,
       default: Date.now,
     },

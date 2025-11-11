@@ -1,4 +1,5 @@
 import mongoose from "mongoose"
+import { userSchema, productSchema, orderSchema } from "../models/schemas.js"
 
 // Database connections cache
 const connections = {}
@@ -110,11 +111,40 @@ export const connectToDatabase = async (dbKey) => {
     const uri = getDatabaseURI(dbKey)
     const conn = await mongoose.createConnection(uri).asPromise()
     
+    // Register all models on this connection with collection names
+    // This ensures models are available when querying across databases
+    // Collection names match what modelFactory expects
+    const fragNum = dbKey === "db1" ? "1" : dbKey === "db2" ? "2" : "3"
+    const userCollectionName = `User_Frag${fragNum}`
+    const productCollectionName = `Menu_Frag${fragNum}`
+    const orderCollectionName = `Order_Frag${fragNum}`
+    
+    if (!conn.models[userCollectionName]) {
+      conn.model(userCollectionName, userSchema)
+    }
+    if (!conn.models[productCollectionName]) {
+      conn.model(productCollectionName, productSchema)
+    }
+    if (!conn.models[orderCollectionName]) {
+      conn.model(orderCollectionName, orderSchema)
+    }
+    
+    // Also register with standard names for direct access
+    if (!conn.models.User) {
+      conn.model("User", userSchema)
+    }
+    if (!conn.models.Product) {
+      conn.model("Product", productSchema)
+    }
+    if (!conn.models.Order) {
+      conn.model("Order", orderSchema)
+    }
+    
     connections[dbKey] = conn
     
     // Log connection with database name
     const dbName = conn.name || uri.split('/').pop()?.split('?')[0] || dbKey
-    console.log(`✅ Connected to ${dbKey}: ${dbName}`)
+    console.log(`✅ Connected to ${dbKey}: ${dbName} (Models registered: User, Product, Order)`)
     
     return conn
   } catch (error) {

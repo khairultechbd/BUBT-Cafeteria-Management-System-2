@@ -22,6 +22,16 @@ interface Order {
   quantity: number
   status: string
   createdAt: string
+  // Food snapshot fields
+  foodId?: string
+  foodName?: string
+  foodPrice?: number
+  foodImage?: string
+  foodCategory?: string
+  timeSlot?: string
+  tableNumber?: string
+  roomNumber?: string
+  orderTime?: string
 }
 
 interface User {
@@ -98,19 +108,42 @@ export default function OrdersPage() {
                         <div className="flex justify-between items-start">
                           <div>
                             <h3 className="font-semibold text-lg">
-                              {order.productId && typeof order.productId === 'object' && order.productId.name
+                              {order.foodName || (order.productId && typeof order.productId === 'object' && order.productId.name
                                 ? order.productId.name
-                                : "Product Deleted"}
+                                : "Product Deleted")}
                             </h3>
+                            {order.foodCategory && (
+                              <p className="text-sm text-muted-foreground">
+                                Category: {order.foodCategory}
+                              </p>
+                            )}
+                            {order.timeSlot && (
+                              <p className="text-sm text-muted-foreground">
+                                Time: {order.timeSlot}
+                              </p>
+                            )}
                             <p className="text-sm text-muted-foreground">
                               Quantity: {order.quantity || 1}
                             </p>
+                            {(order.tableNumber || order.roomNumber) && (
+                              <p className="text-sm text-muted-foreground">
+                                {order.tableNumber ? `Table: ${order.tableNumber}` : `Room: ${order.roomNumber}`}
+                              </p>
+                            )}
                             <p className="text-sm text-muted-foreground">
-                              {new Date(order.createdAt).toLocaleDateString("en-US", {
-                                year: "numeric",
-                                month: "short",
-                                day: "numeric",
-                              })}
+                              {order.orderTime
+                                ? new Date(order.orderTime).toLocaleDateString("en-US", {
+                                    year: "numeric",
+                                    month: "short",
+                                    day: "numeric",
+                                  })
+                                : order.createdAt
+                                ? new Date(order.createdAt).toLocaleDateString("en-US", {
+                                    year: "numeric",
+                                    month: "short",
+                                    day: "numeric",
+                                  })
+                                : ""}
                             </p>
                           </div>
                           <StatusBadge status={order.status} />

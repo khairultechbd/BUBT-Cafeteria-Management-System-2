@@ -58,6 +58,8 @@ export default function AdminFoodItemsPage() {
     available: true,
     image: "/placeholder.svg",
   })
+  const [imageFile, setImageFile] = useState<File | null>(null)
+  const [imagePreview, setImagePreview] = useState<string>("")
 
   useEffect(() => {
     const token = localStorage.getItem("token")
@@ -115,6 +117,8 @@ export default function AdminFoodItemsPage() {
       available: item.available !== undefined ? item.available : true,
       image: item.image || "/placeholder.svg",
     })
+    setImageFile(null)
+    setImagePreview("")
   }
 
   const handleSave = async () => {
@@ -194,6 +198,8 @@ export default function AdminFoodItemsPage() {
       available: true,
       image: "/placeholder.svg",
     })
+    setImageFile(null)
+    setImagePreview("")
   }
 
   const handleCreateNew = async () => {
@@ -353,12 +359,49 @@ export default function AdminFoodItemsPage() {
                       />
                     </div>
                     <div>
-                      <label className="text-sm font-medium mb-1 block">Image URL</label>
-                      <Input
-                        value={formData.image}
-                        onChange={(e) => setFormData({ ...formData, image: e.target.value })}
-                        placeholder="/placeholder.svg"
-                      />
+                      <label className="text-sm font-medium mb-1 block">Image</label>
+                      <div className="space-y-2">
+                        <div className="flex gap-2">
+                          <Input
+                            value={formData.image}
+                            onChange={(e) => {
+                              setFormData({ ...formData, image: e.target.value })
+                              setImageFile(null)
+                              setImagePreview("")
+                            }}
+                            placeholder="/placeholder.svg"
+                            className="flex-1"
+                          />
+                          <label className="cursor-pointer">
+                            <input
+                              type="file"
+                              accept="image/*"
+                              className="hidden"
+                              onChange={(e) => {
+                                const file = e.target.files?.[0]
+                                if (file) {
+                                  setImageFile(file)
+                                  const reader = new FileReader()
+                                  reader.onloadend = () => {
+                                    const base64String = reader.result as string
+                                    setImagePreview(base64String)
+                                    setFormData({ ...formData, image: base64String })
+                                  }
+                                  reader.readAsDataURL(file)
+                                }
+                              }}
+                            />
+                            <Button type="button" variant="outline" className="whitespace-nowrap">
+                              Browse
+                            </Button>
+                          </label>
+                        </div>
+                        {imagePreview && (
+                          <div className="mt-2">
+                            <img src={imagePreview} alt="Preview" className="w-32 h-32 object-cover rounded border" />
+                          </div>
+                        )}
+                      </div>
                     </div>
                     <div className="flex items-center gap-4">
                       <label className="text-sm font-medium">Available</label>
