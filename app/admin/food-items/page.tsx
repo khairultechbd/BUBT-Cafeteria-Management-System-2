@@ -488,7 +488,7 @@ export default function AdminFoodItemsPage() {
                       <div className="space-y-3">
                         <div className="flex justify-between items-start">
                           <div className="flex-1">
-                            <h3 className="font-semibold text-lg">{item.name}</h3>
+                            <h3 className="font-semibold text-lg text-gray-900 dark:text-gray-100">{item.name}</h3>
                             <p className="text-sm text-muted-foreground mt-1 line-clamp-2">{item.description}</p>
                           </div>
                         </div>

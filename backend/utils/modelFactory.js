@@ -5,30 +5,28 @@ import { getConnection } from "../config/dbManager.js"
 const modelCache = {}
 
 // Helper function to get collection name based on model type and database
-// Returns meaningful collection names based on fragmentation strategy
+// Returns PDF fragmentation names exactly as specified
 const getCollectionName = (modelName, dbKey, additionalData = {}) => {
   if (modelName === "User") {
-    // Users are fragmented by role: student→db1, teacher→db2, admin/staff→db3
-    if (dbKey === "db1") return "user_student"
-    if (dbKey === "db2") return "user_teacher"
-    if (dbKey === "db3") return "user_staff"
+    // PDF Fragmentation: User_Frag1 → DB1 → Students, User_Frag2 → DB2 → Teachers, User_Frag3 → DB3 → Admin + Staff
+    if (dbKey === "db1") return "User_Frag1"
+    if (dbKey === "db2") return "User_Frag2"
+    if (dbKey === "db3") return "User_Frag3"
     return "users" // fallback
   } else if (modelName === "Product") {
-    // Products are fragmented by timeCategory: morning→db1, day→db2, evening→db3
-    if (dbKey === "db1") return "food_morning"
-    if (dbKey === "db2") return "food_lunch"
-    if (dbKey === "db3") return "food_evening"
+    // PDF Fragmentation: Menu_Frag1 → DB1 → Morning, Menu_Frag2 → DB2 → Lunch, Menu_Frag3 → DB3 → Evening
+    if (dbKey === "db1") return "Menu_Frag1"
+    if (dbKey === "db2") return "Menu_Frag2"
+    if (dbKey === "db3") return "Menu_Frag3"
     return "foods" // fallback
   } else if (modelName === "Order") {
-    // Orders are fragmented by time: morning→db1, lunch→db2, evening→db3
-    // For today's orders vs history, we can use the same collections
-    // or differentiate based on date if needed
-    if (dbKey === "db1") return "orders_today" // morning orders
-    if (dbKey === "db2") return "orders_today" // lunch orders
-    if (dbKey === "db3") return "orders_today" // evening orders
+    // PDF Fragmentation: Order_Frag1 → DB1 → < 11:00 AM, Order_Frag2 → DB2 → 11:00 AM - 3:00 PM, Order_Frag3 → DB3 → > 3:00 PM
+    if (dbKey === "db1") return "Order_Frag1"
+    if (dbKey === "db2") return "Order_Frag2"
+    if (dbKey === "db3") return "Order_Frag3"
     return "orders" // fallback
   } else if (modelName === "Notification") {
-    return "notifications"
+    return "Notification_Frag1" // Default to Frag1, can be extended if needed
   }
   
   // Fallback to original model name if not mapped
@@ -67,17 +65,27 @@ export const getModel = async (modelName, schema, dbKey) => {
   // Check if model already exists on this connection
   let model = conn.models[collectionName]
   if (!model) {
-    // Check mongoose.models to prevent "Schema hasn't been registered" errors
+    // Delete mongoose.models before registering to prevent overwrite errors
     const globalModelKey = `${conn.name}_${collectionName}`
     if (mongoose.models && mongoose.models[globalModelKey]) {
-      model = mongoose.models[globalModelKey]
+      delete mongoose.models[globalModelKey]
+    }
+    // Also delete standard model names if they exist
+    if (modelName === 'Product' && mongoose.models && mongoose.models['Product']) {
+      delete mongoose.models['Product']
+    }
+    if (modelName === 'User' && mongoose.models && mongoose.models['User']) {
+      delete mongoose.models['User']
+    }
+    if (modelName === 'Order' && mongoose.models && mongoose.models['Order']) {
+      delete mongoose.models['Order']
+    }
+    
+    // Register model with collection name
+    if (modelName === 'Product' && !conn.models['Product']) {
+      model = conn.model('Product', schema, collectionName)
     } else {
-      // Also check standard model name (e.g., 'Product')
-      if (modelName === 'Product' && !conn.models['Product']) {
-        model = conn.model('Product', schema)
-      } else {
-        model = conn.model(collectionName, schema)
-      }
+      model = conn.model(collectionName, schema)
     }
   }
   

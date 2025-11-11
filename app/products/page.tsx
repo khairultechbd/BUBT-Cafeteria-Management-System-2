@@ -103,9 +103,11 @@ export default function FoodItemsPage() {
     if (!selectedItem) return
 
     try {
+      // Send orderTime from client's local device time (as per requirements)
       const orderData: any = {
         productId: selectedItem.id || selectedItem._id,
         quantity: orderQuantity,
+        orderTime: new Date().toISOString(), // Client's local time as ISO string
       }
 
       if (locationType === "table") {

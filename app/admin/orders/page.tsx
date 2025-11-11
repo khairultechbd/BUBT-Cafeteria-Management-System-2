@@ -363,7 +363,7 @@ export default function AdminOrdersPage() {
                     <CardHeader className="pb-3">
                       <div className="flex justify-between items-start">
                         <div>
-                          <CardTitle className="text-lg">Order #{order.id || order._id}</CardTitle>
+                          <CardTitle className="text-lg text-gray-900 dark:text-gray-100">Order #{order.id || order._id}</CardTitle>
                           <p className="text-sm text-muted-foreground">
                             {order.createdAt
                               ? new Date(order.createdAt).toLocaleDateString("en-US", {

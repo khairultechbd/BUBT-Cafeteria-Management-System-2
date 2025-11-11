@@ -42,7 +42,7 @@ const createNotification = async (userId, type, title, message, orderId = null, 
 // Create order (User)
 router.post("/", protect, async (req, res) => {
   try {
-    const { productId, quantity, tableNumber, roomNumber } = req.body
+    const { productId, quantity, tableNumber, roomNumber, orderTime } = req.body
 
     if (!productId || !quantity) {
       return res.status(400).json({ message: "Product ID and quantity required" })
@@ -66,8 +66,21 @@ router.post("/", protect, async (req, res) => {
 
     const totalPrice = product.price * quantity
 
-    // Determine database for order based on order time (fragmentation by time)
-    const orderDate = new Date()
+    // Use orderTime from client (local device time) or fallback to server time
+    let orderDate
+    if (orderTime) {
+      // Parse ISO string from client
+      orderDate = new Date(orderTime)
+      if (isNaN(orderDate.getTime())) {
+        // Invalid date, use server time
+        orderDate = new Date()
+      }
+    } else {
+      // Fallback to server time if not provided
+      orderDate = new Date()
+    }
+
+    // Determine database for order based on order time from client (fragmentation by time)
     let orderDbKey
     try {
       orderDbKey = getDatabaseForOrder(orderDate)
@@ -92,7 +105,7 @@ router.post("/", protect, async (req, res) => {
       return res.status(500).json({ message: "Order creation failed", error: `Database connection error: ${err.message}` })
     }
 
-    // Save full food snapshot with all required fields
+    // Save full food snapshot with all required fields (as per requirements)
     const order = new Order({
       userId: req.user.id,
       productId,
@@ -109,7 +122,7 @@ router.post("/", protect, async (req, res) => {
       timeSlot: product.timeCategory || "day",
       tableNumber: tableNumber || null,
       roomNumber: roomNumber || null,
-      orderTime: orderDate,
+      orderTime: orderDate, // Use orderTime from client (local device time)
       orderStatus: "pending", // Also save as orderStatus for compatibility
     })
     
