@@ -72,10 +72,11 @@ router.post("/register", async (req, res) => {
 
     // Log with collection name
     const collectionName = dbKey === "db1" ? "User_Frag1" : dbKey === "db2" ? "User_Frag2" : "User_Frag3"
-    console.log(`[UserCreation] Created user ${email} with role ${userRole} in ${dbKey} → Collection: ${collectionName}`)
+    console.log(`[UserCreation] ✅ Created user ${email} with role ${userRole} in ${dbKey} → Collection: ${collectionName}`)
 
     res.status(201).json({
-      message: "User registered successfully. Awaiting admin approval.",
+      message: "User created successfully!",
+      success: true,
       user: {
         id: user._id,
         name: user.name,

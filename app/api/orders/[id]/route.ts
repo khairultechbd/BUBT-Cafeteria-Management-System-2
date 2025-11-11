@@ -1,27 +1,74 @@
 import { type NextRequest, NextResponse } from "next/server"
 
-// Mock database - shared with route.ts
-const orders: any[] = []
+// Proxy to Express backend
+const EXPRESS_BACKEND_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:5000"
 
-export async function PUT(request: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
   try {
+    const { id } = params
     const authHeader = request.headers.get("authorization")
     if (!authHeader) {
       return NextResponse.json({ message: "Unauthorized" }, { status: 401 })
     }
 
-    const { status } = await request.json()
-    const orderId = params.id
+    const response = await fetch(`${EXPRESS_BACKEND_URL}/api/orders/${id}`, {
+      method: "GET",
+      headers: {
+        Authorization: authHeader,
+      },
+    })
 
-    // Find and update order
-    const orderIndex = orders.findIndex((o) => o.id === orderId)
-    if (orderIndex === -1) {
-      return NextResponse.json({ message: "Order not found" }, { status: 404 })
+    const data = await response.json()
+    return NextResponse.json(data, { status: response.status })
+  } catch (error: any) {
+    return NextResponse.json({ message: error.message || "Internal server error" }, { status: 500 })
+  }
+}
+
+export async function PUT(request: NextRequest, { params }: { params: { id: string } }) {
+  try {
+    const { id } = params
+    const authHeader = request.headers.get("authorization")
+    if (!authHeader) {
+      return NextResponse.json({ message: "Unauthorized" }, { status: 401 })
     }
 
-    orders[orderIndex].status = status
-    return NextResponse.json(orders[orderIndex])
-  } catch (error) {
-    return NextResponse.json({ message: "Internal server error" }, { status: 500 })
+    const body = await request.json()
+    
+    const response = await fetch(`${EXPRESS_BACKEND_URL}/api/orders/${id}/status`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: authHeader,
+      },
+      body: JSON.stringify(body),
+    })
+
+    const data = await response.json()
+    return NextResponse.json(data, { status: response.status })
+  } catch (error: any) {
+    return NextResponse.json({ message: error.message || "Internal server error" }, { status: 500 })
+  }
+}
+
+export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {
+  try {
+    const { id } = params
+    const authHeader = request.headers.get("authorization")
+    if (!authHeader) {
+      return NextResponse.json({ message: "Unauthorized" }, { status: 401 })
+    }
+
+    const response = await fetch(`${EXPRESS_BACKEND_URL}/api/orders/${id}`, {
+      method: "DELETE",
+      headers: {
+        Authorization: authHeader,
+      },
+    })
+
+    const data = await response.json()
+    return NextResponse.json(data, { status: response.status })
+  } catch (error: any) {
+    return NextResponse.json({ message: error.message || "Internal server error" }, { status: 500 })
   }
 }

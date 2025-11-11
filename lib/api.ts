@@ -1,8 +1,6 @@
 export function getApiBaseUrl(): string {
-  const base = process.env.NEXT_PUBLIC_API_BASE_URL
-  if (!base) {
-    throw new Error("NEXT_PUBLIC_API_BASE_URL is not set")
-  }
+  // Default to Express backend if env var not set
+  const base = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:5000"
   return base.replace(/\/$/, "")
 }
 

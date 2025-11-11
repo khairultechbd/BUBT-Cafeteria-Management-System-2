@@ -1,32 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server"
 
-// Mock database
-const users: any[] = [
-  {
-    id: "1",
-    name: "Admin User",
-    email: "admin@bubt.edu.bd",
-    password: "admin123",
-    role: "admin",
-    status: "active",
-  },
-  {
-    id: "2",
-    name: "Test User",
-    email: "user@bubt.edu.bd",
-    password: "user123",
-    role: "user",
-    status: "active",
-  },
-  {
-    id: "3",
-    name: "Pending User",
-    email: "pending@bubt.edu.bd",
-    password: "pending123",
-    role: "user",
-    status: "pending",
-  },
-]
+// Proxy to Express backend
+const EXPRESS_BACKEND_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:5000"
 
 export async function GET(request: NextRequest) {
   try {
@@ -35,8 +10,16 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ message: "Unauthorized" }, { status: 401 })
     }
 
-    return NextResponse.json(users)
-  } catch (error) {
-    return NextResponse.json({ message: "Internal server error" }, { status: 500 })
+    const response = await fetch(`${EXPRESS_BACKEND_URL}/api/users`, {
+      method: "GET",
+      headers: {
+        Authorization: authHeader,
+      },
+    })
+
+    const data = await response.json()
+    return NextResponse.json(data, { status: response.status })
+  } catch (error: any) {
+    return NextResponse.json({ message: error.message || "Internal server error" }, { status: 500 })
   }
 }

@@ -1,7 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server"
 
-// Mock database
-const orders: any[] = []
+// Proxy to Express backend
+const EXPRESS_BACKEND_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:5000"
 
 export async function PUT(request: NextRequest, { params }: { params: { id: string } }) {
   try {
@@ -10,12 +10,28 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
       return NextResponse.json({ message: "Unauthorized" }, { status: 401 })
     }
 
-    const { status } = await request.json()
-    const orderId = params.id
+    const { id } = params
+    const body = await request.json()
+    
+    // Determine which endpoint to call based on the action
+    const endpoint = body.action === "accept" 
+      ? `${EXPRESS_BACKEND_URL}/api/orders/${id}/accept`
+      : body.action === "reject"
+      ? `${EXPRESS_BACKEND_URL}/api/orders/${id}/reject`
+      : `${EXPRESS_BACKEND_URL}/api/orders/${id}/status`
+    
+    const response = await fetch(endpoint, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: authHeader,
+      },
+      body: JSON.stringify(body),
+    })
 
-    // Mock order update
-    return NextResponse.json({ message: "Order status updated", status })
-  } catch (error) {
-    return NextResponse.json({ message: "Internal server error" }, { status: 500 })
+    const data = await response.json()
+    return NextResponse.json(data, { status: response.status })
+  } catch (error: any) {
+    return NextResponse.json({ message: error.message || "Internal server error" }, { status: 500 })
   }
 }

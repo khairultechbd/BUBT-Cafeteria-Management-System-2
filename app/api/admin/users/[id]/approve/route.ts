@@ -1,32 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server"
 
-// Mock database
-const users: any[] = [
-  {
-    id: "1",
-    name: "Admin User",
-    email: "admin@bubt.edu.bd",
-    password: "admin123",
-    role: "admin",
-    status: "active",
-  },
-  {
-    id: "2",
-    name: "Test User",
-    email: "user@bubt.edu.bd",
-    password: "user123",
-    role: "user",
-    status: "active",
-  },
-  {
-    id: "3",
-    name: "Pending User",
-    email: "pending@bubt.edu.bd",
-    password: "pending123",
-    role: "user",
-    status: "pending",
-  },
-]
+// Proxy to Express backend
+const EXPRESS_BACKEND_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:5000"
 
 export async function PUT(request: NextRequest, { params }: { params: { id: string } }) {
   try {
@@ -35,17 +10,18 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
       return NextResponse.json({ message: "Unauthorized" }, { status: 401 })
     }
 
-    const userId = params.id
-    const user = users.find((u) => u.id === userId)
+    const { id } = params
+    
+    const response = await fetch(`${EXPRESS_BACKEND_URL}/api/users/${id}/approve`, {
+      method: "PUT",
+      headers: {
+        Authorization: authHeader,
+      },
+    })
 
-    if (!user) {
-      return NextResponse.json({ message: "User not found" }, { status: 404 })
-    }
-
-    user.status = "active"
-
-    return NextResponse.json({ message: "User approved", user })
-  } catch (error) {
-    return NextResponse.json({ message: "Internal server error" }, { status: 500 })
+    const data = await response.json()
+    return NextResponse.json(data, { status: response.status })
+  } catch (error: any) {
+    return NextResponse.json({ message: error.message || "Internal server error" }, { status: 500 })
   }
 }

@@ -118,9 +118,13 @@ router.post("/", protect, adminOnly, async (req, res) => {
     
     // Log successful insertion with collection name
     const collectionName = dbKey === "db1" ? "Menu_Frag1" : dbKey === "db2" ? "Menu_Frag2" : "Menu_Frag3"
-    console.log(`[FoodFragmentation] Inserting ${name} (timeCategory: ${timeCategory}) into ${dbKey} → Collection: ${collectionName}`)
+    console.log(`[FoodFragmentation] ✅ Inserting ${name} (timeCategory: ${timeCategory}) into ${dbKey} → Collection: ${collectionName}`)
     
-    res.status(201).json({ message: "Food item added successfully", data: product })
+    res.status(201).json({ 
+      message: "Food item created successfully!", 
+      success: true,
+      data: product 
+    })
   } catch (error) {
     console.error(`[FoodFragmentation] Error creating product:`, error.message)
     res.status(500).json({ message: "Add food failed", error: error.message })

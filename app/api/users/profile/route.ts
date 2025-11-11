@@ -1,24 +1,28 @@
 import { type NextRequest, NextResponse } from "next/server"
 
-// Mock database
-const users: any[] = [
-  {
-    id: "1",
-    name: "Admin User",
-    email: "admin@bubt.edu.bd",
-    password: "admin123",
-    role: "admin",
-    status: "active",
-  },
-  {
-    id: "2",
-    name: "Test User",
-    email: "user@bubt.edu.bd",
-    password: "user123",
-    role: "user",
-    status: "active",
-  },
-]
+// Proxy to Express backend
+const EXPRESS_BACKEND_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:5000"
+
+export async function GET(request: NextRequest) {
+  try {
+    const authHeader = request.headers.get("authorization")
+    if (!authHeader) {
+      return NextResponse.json({ message: "Unauthorized" }, { status: 401 })
+    }
+
+    const response = await fetch(`${EXPRESS_BACKEND_URL}/api/users/profile`, {
+      method: "GET",
+      headers: {
+        Authorization: authHeader,
+      },
+    })
+
+    const data = await response.json()
+    return NextResponse.json(data, { status: response.status })
+  } catch (error: any) {
+    return NextResponse.json({ message: error.message || "Internal server error" }, { status: 500 })
+  }
+}
 
 export async function PUT(request: NextRequest) {
   try {
@@ -27,24 +31,20 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ message: "Unauthorized" }, { status: 401 })
     }
 
-    const { name, email, password } = await request.json()
-
-    // Mock user update - in production, extract user ID from JWT
-    const user = users[0]
-    if (name) user.name = name
-    if (email) user.email = email
-    if (password) user.password = password
-
-    return NextResponse.json({
-      user: {
-        id: user.id,
-        name: user.name,
-        email: user.email,
-        role: user.role,
-        status: user.status,
+    const body = await request.json()
+    
+    const response = await fetch(`${EXPRESS_BACKEND_URL}/api/users/profile`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: authHeader,
       },
+      body: JSON.stringify(body),
     })
-  } catch (error) {
-    return NextResponse.json({ message: "Internal server error" }, { status: 500 })
+
+    const data = await response.json()
+    return NextResponse.json(data, { status: response.status })
+  } catch (error: any) {
+    return NextResponse.json({ message: error.message || "Internal server error" }, { status: 500 })
   }
 }

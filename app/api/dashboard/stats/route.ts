@@ -1,5 +1,8 @@
 import { type NextRequest, NextResponse } from "next/server"
 
+// Proxy to Express backend
+const EXPRESS_BACKEND_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:5000"
+
 export async function GET(request: NextRequest) {
   try {
     const authHeader = request.headers.get("authorization")
@@ -7,15 +10,16 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ message: "Unauthorized" }, { status: 401 })
     }
 
-    // Mock stats
-    const stats = {
-      totalOrders: 12,
-      pendingOrders: 3,
-      users: 25,
-    }
+    const response = await fetch(`${EXPRESS_BACKEND_URL}/api/dashboard/stats`, {
+      method: "GET",
+      headers: {
+        Authorization: authHeader,
+      },
+    })
 
-    return NextResponse.json(stats)
-  } catch (error) {
-    return NextResponse.json({ message: "Internal server error" }, { status: 500 })
+    const data = await response.json()
+    return NextResponse.json(data, { status: response.status })
+  } catch (error: any) {
+    return NextResponse.json({ message: error.message || "Internal server error" }, { status: 500 })
   }
 }

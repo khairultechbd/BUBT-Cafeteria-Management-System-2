@@ -1,90 +1,49 @@
 import { type NextRequest, NextResponse } from "next/server"
 
-const foodItems = [
-  {
-    id: "1",
-    name: "Chicken Biryani",
-    price: 150,
-    description: "Delicious chicken biryani with basmati rice",
-    category: "Main Course",
-    inventory: 25,
-  },
-  {
-    id: "2",
-    name: "Egg Fried Rice",
-    price: 120,
-    description: "Egg fried rice with vegetables",
-    category: "Main Course",
-    inventory: 30,
-  },
-  {
-    id: "3",
-    name: "Chow Mein",
-    price: 100,
-    description: "Chow mein noodles with vegetables",
-    category: "Main Course",
-    inventory: 20,
-  },
-  {
-    id: "4",
-    name: "Chicken Burger",
-    price: 80,
-    description: "Chicken burger with fries",
-    category: "Snacks",
-    inventory: 35,
-  },
-  {
-    id: "5",
-    name: "Cheese Pizza",
-    price: 200,
-    description: "Delicious cheese pizza",
-    category: "Main Course",
-    inventory: 15,
-  },
-  {
-    id: "6",
-    name: "Samosa",
-    price: 30,
-    description: "Crispy samosa (3 pieces)",
-    category: "Snacks",
-    inventory: 50,
-  },
-  {
-    id: "7",
-    name: "Iced Tea",
-    price: 40,
-    description: "Refreshing iced tea",
-    category: "Beverages",
-    inventory: 40,
-  },
-  {
-    id: "8",
-    name: "Mango Lassi",
-    price: 50,
-    description: "Traditional mango lassi",
-    category: "Beverages",
-    inventory: 25,
-  },
-]
+// Proxy to Express backend
+const EXPRESS_BACKEND_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:5000"
 
 export async function GET(request: NextRequest) {
   try {
-    return NextResponse.json(foodItems)
-  } catch (error) {
-    return NextResponse.json({ message: "Internal server error" }, { status: 500 })
+    const authHeader = request.headers.get("authorization")
+    const { searchParams } = new URL(request.url)
+    const timeCategory = searchParams.get("timeCategory")
+    
+    const url = timeCategory 
+      ? `${EXPRESS_BACKEND_URL}/api/products/time/${timeCategory}`
+      : `${EXPRESS_BACKEND_URL}/api/products`
+    
+    const response = await fetch(url, {
+      method: "GET",
+      headers: {
+        ...(authHeader ? { Authorization: authHeader } : {}),
+      },
+    })
+
+    const data = await response.json()
+    return NextResponse.json(data, { status: response.status })
+  } catch (error: any) {
+    return NextResponse.json({ message: error.message || "Internal server error" }, { status: 500 })
   }
 }
 
 export async function POST(request: NextRequest) {
   try {
+    const authHeader = request.headers.get("authorization")
     const body = await request.json()
-    const newItem = {
-      id: String(Math.max(...foodItems.map((item) => Number.parseInt(item.id))) + 1),
-      ...body,
-    }
-    foodItems.push(newItem)
-    return NextResponse.json(newItem, { status: 201 })
-  } catch (error) {
-    return NextResponse.json({ message: "Internal server error" }, { status: 500 })
+    
+    const response = await fetch(`${EXPRESS_BACKEND_URL}/api/products`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(authHeader ? { Authorization: authHeader } : {}),
+      },
+      body: JSON.stringify(body),
+    })
+
+    const data = await response.json()
+    return NextResponse.json(data, { status: response.status })
+  } catch (error: any) {
+    return NextResponse.json({ message: error.message || "Internal server error" }, { status: 500 })
   }
 }

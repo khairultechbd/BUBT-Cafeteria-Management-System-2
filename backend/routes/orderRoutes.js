@@ -107,7 +107,8 @@ router.post("/", protect, async (req, res) => {
     const collectionName = orderDbKey === "db1" ? "Order_Frag1" : orderDbKey === "db2" ? "Order_Frag2" : "Order_Frag3"
     const localHour = orderDate.getHours()
     const localMinutes = orderDate.getMinutes()
-    console.log(`[OrderFragmentation] Successfully inserted order ${order._id} into ${orderDbKey} → Collection: ${collectionName} (Local time: ${localHour.toString().padStart(2, '0')}:${localMinutes.toString().padStart(2, '0')})`)
+    const localSeconds = orderDate.getSeconds()
+    console.log(`[OrderFragmentation] ✅ Successfully inserted order ${order._id} into ${orderDbKey} → Collection: ${collectionName} (Local time: ${localHour.toString().padStart(2, '0')}:${localMinutes.toString().padStart(2, '0')}:${localSeconds.toString().padStart(2, '0')})`)
 
     // Populate product details
     await order.populate("productId")
@@ -138,7 +139,11 @@ router.post("/", protect, async (req, res) => {
       userDbKey
     )
 
-    res.status(201).json({ message: "Order created successfully", order })
+    res.status(201).json({ 
+      message: "Order created successfully!", 
+      success: true,
+      order 
+    })
   } catch (error) {
     res.status(500).json({ message: error.message })
   }
