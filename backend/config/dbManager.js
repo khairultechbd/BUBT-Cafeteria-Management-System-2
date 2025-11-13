@@ -111,51 +111,32 @@ export const connectToDatabase = async (dbKey) => {
     const uri = getDatabaseURI(dbKey)
     const conn = await mongoose.createConnection(uri).asPromise()
     
-    // Register all models on this connection with meaningful collection names
+    // Register all models on this connection with collection names
+    // This ensures models are available when querying across databases
     // Collection names match what modelFactory expects
-    // Users: user_student (db1), user_teacher (db2), user_staff (db3)
-    // Products: food_morning (db1), food_lunch (db2), food_evening (db3)
-    // Orders: orders_today (all dbs for now, can be differentiated later)
-    let userCollectionName, productCollectionName, orderCollectionName
+    const fragNum = dbKey === "db1" ? "1" : dbKey === "db2" ? "2" : "3"
+    const userCollectionName = `User_Frag${fragNum}`
+    const productCollectionName = `Menu_Frag${fragNum}`
+    const orderCollectionName = `Order_Frag${fragNum}`
     
-    if (dbKey === "db1") {
-      userCollectionName = "user_student"
-      productCollectionName = "food_morning"
-      orderCollectionName = "orders_today"
-    } else if (dbKey === "db2") {
-      userCollectionName = "user_teacher"
-      productCollectionName = "food_lunch"
-      orderCollectionName = "orders_today"
-    } else if (dbKey === "db3") {
-      userCollectionName = "user_staff"
-      productCollectionName = "food_evening"
-      orderCollectionName = "orders_today"
-    } else {
-      userCollectionName = "users"
-      productCollectionName = "foods"
-      orderCollectionName = "orders"
-    }
-    
-    // Check mongoose.models to prevent "Schema hasn't been registered" errors
-    // Check connection models before registering
-    if (!conn.models[userCollectionName] && !mongoose.models[userCollectionName]) {
+    if (!conn.models[userCollectionName]) {
       conn.model(userCollectionName, userSchema)
     }
-    if (!conn.models[productCollectionName] && !mongoose.models[productCollectionName]) {
+    if (!conn.models[productCollectionName]) {
       conn.model(productCollectionName, productSchema)
     }
-    if (!conn.models[orderCollectionName] && !mongoose.models[orderCollectionName]) {
+    if (!conn.models[orderCollectionName]) {
       conn.model(orderCollectionName, orderSchema)
     }
     
     // Also register with standard names for direct access
-    if (!conn.models.User && !mongoose.models.User) {
+    if (!conn.models.User) {
       conn.model("User", userSchema)
     }
-    if (!conn.models.Product && !mongoose.models.Product) {
+    if (!conn.models.Product) {
       conn.model("Product", productSchema)
     }
-    if (!conn.models.Order && !mongoose.models.Order) {
+    if (!conn.models.Order) {
       conn.model("Order", orderSchema)
     }
     

@@ -59,6 +59,7 @@ export default function AdminUsersPage() {
     password: "",
     role: "student",
     department: "",
+    studentId: "",
   })
   const debouncedSearch = useDebounce(searchQuery, 300)
 
@@ -165,21 +166,38 @@ export default function AdminUsersPage() {
       return
     }
 
+    // Validate Student ID for student role
+    if (formData.role === "student" && !formData.studentId) {
+      toast({
+        variant: "destructive",
+        title: "Validation Error",
+        description: "Student ID is required for students",
+      })
+      return
+    }
+
     try {
+      const requestBody: any = {
+        name: formData.name,
+        email: formData.email,
+        password: formData.password,
+        role: formData.role,
+        department: formData.department || "General",
+      }
+
+      // Include studentId only if role is student
+      if (formData.role === "student" && formData.studentId) {
+        requestBody.studentId = formData.studentId
+      }
+
       const response = await apiFetch("/api/auth/register", {
         method: "POST",
-        body: JSON.stringify({
-          name: formData.name,
-          email: formData.email,
-          password: formData.password,
-          role: formData.role,
-          department: formData.department || "General",
-        }),
+        body: JSON.stringify(requestBody),
       })
 
       if (response.ok) {
         setShowCreateForm(false)
-        setFormData({ name: "", email: "", password: "", role: "student", department: "" })
+        setFormData({ name: "", email: "", password: "", role: "student", department: "", studentId: "" })
         await fetchUsers()
         toast({
           variant: "success",
@@ -413,6 +431,16 @@ export default function AdminUsersPage() {
                         placeholder="Department (optional)"
                       />
                     </div>
+                    {formData.role === "student" && (
+                      <div className="md:col-span-2">
+                        <label className="text-sm font-medium mb-1 block">Student ID *</label>
+                        <Input
+                          value={formData.studentId}
+                          onChange={(e) => setFormData({ ...formData, studentId: e.target.value })}
+                          placeholder="Student ID (required for students)"
+                        />
+                      </div>
+                    )}
                   </div>
                   <div className="flex gap-2 pt-2">
                     <Button onClick={handleCreateUser} className="bg-green-600 hover:bg-green-700">

@@ -16,13 +16,6 @@ const app = express()
 app.use(cors())
 app.use(express.json())
 
-// Serve uploaded files statically
-import { fileURLToPath } from "url"
-import { dirname, join } from "path"
-const __filename = fileURLToPath(import.meta.url)
-const __dirname = dirname(__filename)
-app.use("/uploads", express.static(join(__dirname, "server", "uploads")))
-
 // Connect to all databases (non-blocking)
 // This runs in background and doesn't block server startup
 connectAllDatabases().catch((err) => {
@@ -43,7 +36,7 @@ app.get("/api/health", (req, res) => {
   res.json({ message: "Server is running" })
 })
 
-const PORT = process.env.PORT || 5000
+const PORT = process.env.PORT || 5001
 
 // Create server with error handling
 const server = app.listen(PORT, () => {

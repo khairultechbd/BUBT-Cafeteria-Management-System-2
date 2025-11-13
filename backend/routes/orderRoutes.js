@@ -42,7 +42,7 @@ const createNotification = async (userId, type, title, message, orderId = null, 
 // Create order (User)
 router.post("/", protect, async (req, res) => {
   try {
-    const { productId, quantity, tableNumber, roomNumber } = req.body
+    const { productId, quantity, tableNumber, roomNumber, orderTime } = req.body
 
     if (!productId || !quantity) {
       return res.status(400).json({ message: "Product ID and quantity required" })
@@ -66,17 +66,20 @@ router.post("/", protect, async (req, res) => {
 
     const totalPrice = product.price * quantity
 
+    // Use LOCAL PC TIME from frontend for fragmentation
+    // If orderTime is provided, use it; otherwise fallback to server time
+    const orderTimeFromClient = orderTime ? new Date(orderTime) : new Date()
+    
     // Determine database for order based on order time (fragmentation by time)
-    const orderDate = new Date()
     let orderDbKey
     try {
-      orderDbKey = getDatabaseForOrder(orderDate)
+      orderDbKey = getDatabaseForOrder(orderTimeFromClient)
       if (!orderDbKey) {
-        throw new Error(`Invalid order_time (${orderDate}) — cannot determine DB.`)
+        throw new Error(`Invalid order_time (${orderTimeFromClient}) — cannot determine DB.`)
       }
     } catch (err) {
       console.error(`[OrderFragmentation] Error determining database for order:`, err.message)
-      console.error(`[OrderFragmentation] Order date: ${orderDate}, User: ${req.user.email || req.user.id}`)
+      console.error(`[OrderFragmentation] Order date: ${orderTimeFromClient}, User: ${req.user.email || req.user.id}`)
       return res.status(500).json({ message: "Order creation failed", error: err.message })
     }
 
@@ -92,37 +95,37 @@ router.post("/", protect, async (req, res) => {
       return res.status(500).json({ message: "Order creation failed", error: `Database connection error: ${err.message}` })
     }
 
-    // Save full food snapshot with all required fields
+    // Save full food snapshot with required field names
     const order = new Order({
       userId: req.user.id,
       productId,
       quantity,
       totalPrice,
       status: "pending",
-      orderDate: orderDate,
-      // Food snapshot - all required fields
+      orderDate: orderTimeFromClient,
+      // Food snapshot - using required field names (price, image, category)
       foodId: product._id,
       foodName: product.name,
-      foodPrice: product.price,
-      foodImage: product.image || "/placeholder.svg",
-      foodCategory: product.category || "Food",
+      price: product.price,
+      image: product.image || "/placeholder.svg",
+      category: product.category || "Food",
       timeSlot: product.timeCategory || "day",
       tableNumber: tableNumber || null,
       roomNumber: roomNumber || null,
-      orderTime: orderDate,
-      orderStatus: "pending", // Also save as orderStatus for compatibility
+      orderTime: orderTimeFromClient,
+      // Keep old field names for backward compatibility
+      foodPrice: product.price,
+      foodImage: product.image || "/placeholder.svg",
+      foodCategory: product.category || "Food",
     })
-    
-    // Ensure orderStatus is synced with status
-    order.orderStatus = order.status
 
     await order.save()
     
     // Log successful insertion with collection name
     const collectionName = orderDbKey === "db1" ? "Order_Frag1" : orderDbKey === "db2" ? "Order_Frag2" : "Order_Frag3"
-    const localHour = orderDate.getHours()
-    const localMinutes = orderDate.getMinutes()
-    const localSeconds = orderDate.getSeconds()
+    const localHour = orderTimeFromClient.getHours()
+    const localMinutes = orderTimeFromClient.getMinutes()
+    const localSeconds = orderTimeFromClient.getSeconds()
     console.log(`[OrderFragmentation] ✅ Successfully inserted order ${order._id} into ${orderDbKey} → Collection: ${collectionName} (Local time: ${localHour.toString().padStart(2, '0')}:${localMinutes.toString().padStart(2, '0')}:${localSeconds.toString().padStart(2, '0')})`)
 
     // Populate product details
@@ -164,58 +167,63 @@ router.post("/", protect, async (req, res) => {
   }
 })
 
-// Get user's orders - query across all databases since orders are fragmented by time
+// Get user's orders - query all databases since orders are fragmented by time
 router.get("/my-orders", protect, async (req, res) => {
   try {
+    const ProductDb1 = await getProductModel("db1")
     const allOrders = []
     
-    // Query all databases for user's orders
+    // Query all databases for user's orders (orders are fragmented by time, not by user)
     for (const dbKey of ["db1", "db2", "db3"]) {
       try {
         const Order = await getOrderModel(dbKey)
-        const userOrders = await Order.find({ userId: req.user.id })
+        const orders = await Order.find({ userId: req.user.id })
           .sort({ createdAt: -1 })
-        allOrders.push(...userOrders.map(order => ({ ...order.toObject(), _sourceDb: dbKey })))
+        allOrders.push(...orders)
       } catch (err) {
         console.error(`Error querying orders from ${dbKey}:`, err.message)
+        // Continue with other databases even if one fails
       }
     }
     
     // Sort all orders by creation date (newest first)
-    allOrders.sort((a, b) => new Date(b.createdAt || b.orderTime || 0) - new Date(a.createdAt || a.orderTime || 0))
+    allOrders.sort((a, b) => {
+      const dateA = new Date(a.createdAt || a.orderTime || 0)
+      const dateB = new Date(b.createdAt || b.orderTime || 0)
+      return dateB - dateA
+    })
     
-    res.json(allOrders)
-  } catch (error) {
-    res.status(500).json({ message: error.message })
-  }
-})
-
-// Get orders by user ID (Admin or same user)
-router.get("/user/:id", protect, async (req, res) => {
-  try {
-    const userId = req.params.id
-    
-    // Only allow users to see their own orders, or admins to see any user's orders
-    if (req.user.role !== "admin" && req.user.id !== userId) {
-      return res.status(403).json({ message: "Not authorized to view this user's orders" })
-    }
-    
-    const allOrders = []
-    
-    // Query all databases for user's orders
-    for (const dbKey of ["db1", "db2", "db3"]) {
-      try {
-        const Order = await getOrderModel(dbKey)
-        const userOrders = await Order.find({ userId })
-          .sort({ createdAt: -1 })
-        allOrders.push(...userOrders.map(order => ({ ...order.toObject(), _sourceDb: dbKey })))
-      } catch (err) {
-        console.error(`Error querying orders from ${dbKey}:`, err.message)
+    // Manually populate products from db1
+    for (const order of allOrders) {
+      if (order.productId) {
+        try {
+          // Extract productId - could be ObjectId, string, or populated object
+          let productId = null
+          if (order.productId._id) {
+            productId = order.productId._id
+          } else if (typeof order.productId === 'string') {
+            productId = order.productId
+          } else if (order.productId.toString) {
+            productId = order.productId.toString()
+          }
+          
+          if (productId) {
+            const product = await ProductDb1.findById(productId)
+            if (product) {
+              order.productId = product.toObject()
+            } else {
+              order.productId = null
+            }
+          } else {
+            order.productId = null
+          }
+        } catch (err) {
+          order.productId = null
+        }
+      } else {
+        order.productId = null
       }
     }
-    
-    // Sort all orders by creation date (newest first)
-    allOrders.sort((a, b) => new Date(b.createdAt || b.orderTime || 0) - new Date(a.createdAt || a.orderTime || 0))
     
     res.json(allOrders)
   } catch (error) {
@@ -427,8 +435,7 @@ router.put("/:id/accept", protect, adminOnly, async (req, res) => {
       return res.status(404).json({ message: "Order not found" })
     }
 
-    record.order.status = "preparing"
-    record.order.orderStatus = "preparing" // Keep orderStatus in sync
+    record.order.status = "accepted"
     await record.order.save()
     
     // Manually populate product from db1
@@ -461,13 +468,13 @@ router.put("/:id/accept", protect, adminOnly, async (req, res) => {
     await createNotification(
       record.order.userId,
       "order_accepted",
-      "Order Preparing",
-      `Your order for ${productName} x${record.order.quantity} is now being prepared!`,
+      "Order Accepted",
+      `Your order for ${productName} x${record.order.quantity} has been accepted!`,
       record.order._id,
       record.dbKey
     )
 
-    res.json({ message: "Order accepted and preparing", order: record.order })
+    res.json({ message: "Order accepted", order: record.order })
   } catch (error) {
     res.status(500).json({ message: error.message })
   }
@@ -532,15 +539,8 @@ router.put("/:id/status", protect, adminOnly, async (req, res) => {
   try {
     const { status } = req.body
 
-    // Map old statuses for backward compatibility
-    const statusMap = {
-      "accepted": "preparing",
-      "served": "ready"
-    }
-    const mappedStatus = statusMap[status] || status
-
-    if (!["pending", "preparing", "ready", "completed"].includes(mappedStatus)) {
-      return res.status(400).json({ message: "Invalid status. Must be: pending, preparing, ready, or completed" })
+    if (!["pending", "accepted", "rejected", "served", "completed"].includes(status)) {
+      return res.status(400).json({ message: "Invalid status" })
     }
 
     const record = await findOrderById(req.params.id)
@@ -549,12 +549,11 @@ router.put("/:id/status", protect, adminOnly, async (req, res) => {
       return res.status(404).json({ message: "Order not found" })
     }
 
-    record.order.status = mappedStatus
-    record.order.orderStatus = mappedStatus // Keep orderStatus in sync
+    record.order.status = status
     await record.order.save()
     
     // Manually populate product from db1 if we need to create notification
-    if (mappedStatus === "ready") {
+    if (status === "served") {
       const ProductDb1 = await getProductModel("db1")
       let productName = "your order"
       try {
@@ -580,7 +579,7 @@ router.put("/:id/status", protect, adminOnly, async (req, res) => {
         console.error("Error fetching product for notification:", err)
       }
 
-      // Create notification if status is ready
+      // Create notification if status is served
       await createNotification(
         record.order.userId,
         "order_served",

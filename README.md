@@ -17,7 +17,7 @@ A full-stack cafeteria management system built with Next.js, Express.js, and Mon
 9. [Technologies Used](#-technologies-used)
 10. [License](#-license)
 
----##check
+---
 
 ## 🎯 Project Overview
 

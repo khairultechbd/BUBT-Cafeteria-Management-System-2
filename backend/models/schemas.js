@@ -112,7 +112,7 @@ export const orderSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ["pending", "preparing", "ready", "completed"],
+      enum: ["pending", "accepted", "rejected", "served", "completed"],
       default: "pending",
     },
     totalPrice: {
@@ -123,7 +123,7 @@ export const orderSchema = new mongoose.Schema(
       type: Date,
       default: Date.now,
     },
-    // Food snapshot fields
+    // Food snapshot fields - using required field names (price, image, category)
     foodId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Product",
@@ -131,13 +131,13 @@ export const orderSchema = new mongoose.Schema(
     foodName: {
       type: String,
     },
-    foodPrice: {
+    price: {
       type: Number,
     },
-    foodImage: {
+    image: {
       type: String,
     },
-    foodCategory: {
+    category: {
       type: String,
     },
     timeSlot: {
@@ -154,10 +154,15 @@ export const orderSchema = new mongoose.Schema(
       type: Date,
       default: Date.now,
     },
-    orderStatus: {
+    // Keep old field names for backward compatibility
+    foodPrice: {
+      type: Number,
+    },
+    foodImage: {
       type: String,
-      enum: ["pending", "preparing", "ready", "completed"],
-      default: "pending",
+    },
+    foodCategory: {
+      type: String,
     },
   },
   { timestamps: true },

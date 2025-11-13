@@ -106,6 +106,7 @@ export default function FoodItemsPage() {
       const orderData: any = {
         productId: selectedItem.id || selectedItem._id,
         quantity: orderQuantity,
+        orderTime: new Date().toISOString(),
       }
 
       if (locationType === "table") {

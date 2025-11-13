@@ -1,51 +1,10 @@
 import express from "express"
-import multer from "multer"
-import path from "path"
-import { fileURLToPath } from "url"
-import { dirname } from "path"
 import { protect, adminOnly } from "../middleware/authMiddleware.js"
 import { getProductModel, queryAllDatabases } from "../utils/modelFactory.js"
 import { productSchema } from "../models/schemas.js"
 import { getDatabaseForMenu } from "../config/dbManager.js"
-import fs from "fs"
-
-const __filename = fileURLToPath(import.meta.url)
-const __dirname = dirname(__filename)
 
 const router = express.Router()
-
-// Configure multer for file uploads
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    const uploadDir = path.join(__dirname, "../server/uploads")
-    // Create uploads directory if it doesn't exist
-    if (!fs.existsSync(uploadDir)) {
-      fs.mkdirSync(uploadDir, { recursive: true })
-    }
-    cb(null, uploadDir)
-  },
-  filename: (req, file, cb) => {
-    // Generate unique filename with timestamp
-    const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9)
-    const ext = path.extname(file.originalname)
-    cb(null, `food-${uniqueSuffix}${ext}`)
-  },
-})
-
-const upload = multer({
-  storage: storage,
-  limits: {
-    fileSize: 5 * 1024 * 1024, // 5MB limit
-  },
-  fileFilter: (req, file, cb) => {
-    // Accept only image files
-    if (file.mimetype.startsWith("image/")) {
-      cb(null, true)
-    } else {
-      cb(new Error("Only image files are allowed"), false)
-    }
-  },
-})
 
 // Get all products (Public) - query all databases
 router.get("/", async (req, res) => {
@@ -199,27 +158,6 @@ router.put("/:id", protect, adminOnly, async (req, res) => {
     res.json({ message: "Product updated", product })
   } catch (error) {
     res.status(500).json({ message: error.message })
-  }
-})
-
-// Image upload endpoint (Admin only)
-router.post("/upload", protect, adminOnly, upload.single("image"), async (req, res) => {
-  try {
-    if (!req.file) {
-      return res.status(400).json({ message: "No image file provided" })
-    }
-
-    // Return the local file path URL
-    const imageUrl = `/uploads/${req.file.filename}`
-    
-    res.status(200).json({
-      success: true,
-      message: "Image uploaded successfully",
-      imageUrl: imageUrl,
-    })
-  } catch (error) {
-    console.error("Image upload error:", error)
-    res.status(500).json({ message: error.message || "Image upload failed" })
   }
 })
 
