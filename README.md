@@ -1,758 +1,331 @@
-# 🍽️ Cafeteria Management System
+# Cafeteria Management System
 
-A full-stack cafeteria management system built with Next.js, Express.js, and MongoDB. This system supports user management, food menu management, order tracking, and real-time notifications with a multi-database fragmentation architecture for scalability.
-
----
-
-## 📋 Table of Contents
-
-1. [Project Overview](#-project-overview)
-2. [Project Folder Structure](#-project-folder-structure)
-3. [System Requirements](#-system-requirements)
-4. [Installation Guide](#-installation-guide)
-5. [Backend Setup](#-backend-setup)
-6. [Frontend Setup](#-frontend-setup)
-7. [Running the Application](#-running-frontend--backend-together)
-8. [Common Errors & Fixes](#-common-errors--fixes)
-9. [Technologies Used](#-technologies-used)
-10. [License](#-license)
+> A full-stack cafeteria management platform that pairs a Next.js 16 dashboard with an Express/MongoDB backend and a horizontal fragmentation strategy for scalable ordering.
 
 ---
 
-## 🎯 Project Overview
+## Table of Contents
 
-### Purpose
-This is a comprehensive **Cafeteria Management System** designed for managing food orders, user accounts, and administrative tasks in a cafeteria environment. The system supports Bengali food items with time-based categories (Morning, Lunch, Evening) and implements a sophisticated multi-database architecture for horizontal scaling.
-
-### Key Features
-
-- 👥 **User Management**
-  - User registration with role-based access (Student, Teacher, Staff, Admin)
-  - Student auto-approval system
-  - Admin approval workflow for Teachers and Staff
-  - Profile management and password updates
-
-- 🍛 **Food Menu Management**
-  - Bengali food items with time categories (🌅 Morning, 🍛 Lunch, 🌆 Evening)
-  - Image upload functionality
-  - Price and availability management
-  - Category and description fields
-
-- 📦 **Order Management**
-  - Order placement with quantity selection
-  - Table/Room number input
-  - Order status tracking (Pending → Preparing → Ready → Completed)
-  - Order history for users
-  - Cross-database order queries
-
-- 🔔 **Notifications**
-  - Real-time order status notifications
-  - Admin notifications for new orders
-  - User notifications for order updates
-
-- 📊 **Admin Dashboard**
-  - User approval/rejection
-  - Food item CRUD operations
-  - Order management
-  - Statistics and analytics
-
-- 🗄️ **Multi-Database Architecture**
-  - Horizontal database fragmentation (sharding)
-  - 3 separate MongoDB databases for scalability
-  - Role-based data distribution
+1. [Project Overview](#project-overview)
+2. [Technologies Used](#technologies-used)
+3. [Core Code Explanation](#core-code-explanation)
+4. [Project Structure](#project-structure)
+5. [Database Design & Fragmentation](#database-design--fragmentation)
+6. [Setup & Installation](#setup--installation)
+7. [Dependencies](#dependencies)
+8. [How the Project Works (Flow Explanation)](#how-the-project-works-flow-explanation)
+9. [Code-Level Highlights](#code-level-highlights)
+10. [Common Errors & Fixes](#common-errors--fixes)
+11. [Developer Guide](#developer-guide)
+12. [Credits & License](#credits--license)
 
 ---
 
-## 📁 Project Folder Structure
+## Project Overview
 
-```
-finalv3/
-├── app/                          # Next.js App Router (Frontend)
-│   ├── admin/                    # Admin-only pages
-│   │   ├── food-items/          # Food management page
-│   │   ├── notifications/       # Admin notifications
-│   │   ├── orders/              # Order management
-│   │   └── users/               # User management
-│   ├── api/                      # Next.js API routes (proxies to Express)
-│   │   ├── admin/               # Admin API routes
-│   │   ├── auth/                # Authentication routes
-│   │   ├── dashboard/           # Dashboard stats
-│   │   ├── orders/              # Order API routes
-│   │   ├── products/            # Product API routes
-│   │   └── users/               # User API routes
-│   ├── dashboard/               # User dashboard
-│   ├── login/                   # Login page
-│   ├── orders/                  # User orders page
-│   ├── products/                 # Food browsing page
-│   ├── profile/                 # User profile page
-│   ├── signup/                  # Registration page
-│   ├── globals.css              # Global styles
-│   └── layout.tsx               # Root layout
-│
-├── backend/                      # Express.js Backend
-│   ├── config/                  # Configuration files
-│   │   ├── db.js                # Database connection (legacy)
-│   │   └── dbManager.js         # Multi-database manager
-│   ├── middleware/              # Express middleware
-│   │   └── authMiddleware.js    # JWT authentication
-│   ├── models/                  # Mongoose models
-│   │   ├── Order.js             # Order model
-│   │   ├── Product.js           # Product model
-│   │   ├── schemas.js           # Shared schemas
-│   │   └── User.js              # User model
-│   ├── routes/                  # API routes
-│   │   ├── authRoutes.js        # Authentication routes
-│   │   ├── dashboardRoutes.js   # Dashboard routes
-│   │   ├── notificationRoutes.js # Notification routes
-│   │   ├── orderRoutes.js       # Order routes
-│   │   ├── productRoutes.js     # Product routes
-│   │   └── userRoutes.js        # User routes
-│   ├── scripts/                 # Utility scripts
-│   │   ├── createAdmin.js       # Create admin user
-│   │   └── seedBengaliFoods.js  # Seed food items
-│   ├── server/                  # Server files
-│   │   └── uploads/             # Uploaded images (created at runtime)
-│   ├── utils/                   # Utility functions
-│   │   └── modelFactory.js      # Model factory for multi-DB
-│   ├── package.json             # Backend dependencies
-│   └── server.js                # Express server entry point
-│
-├── components/                   # React components
-│   ├── ui/                      # UI components (shadcn/ui)
-│   │   ├── button.tsx
-│   │   ├── card.tsx
-│   │   ├── input.tsx
-│   │   ├── toast.tsx
-│   │   └── toaster.tsx
-│   ├── navbar.tsx               # Navigation bar
-│   ├── sidebar.tsx              # Sidebar navigation
-│   ├── topbar.tsx               # Top bar
-│   ├── status-badge.tsx         # Status badge component
-│   └── search-input.tsx         # Search input component
-│
-├── hooks/                       # Custom React hooks
-│   ├── use-debounce.ts         # Debounce hook
-│   └── use-toast.ts            # Toast notification hook
-│
-├── lib/                         # Utility libraries
-│   ├── api.ts                   # API fetch utility
-│   └── utils.ts                 # General utilities
-│
-├── public/                      # Static assets
-│   ├── placeholder-logo.png
-│   ├── placeholder-logo.svg
-│   └── placeholder.svg
-│
-├── styles/                      # Additional styles
-│   └── globals.css
-│
-├── frontend/                    # Legacy frontend (not used in Next.js)
-│   └── src/                     # React source files
-│
-├── .gitignore                   # Git ignore file
-├── components.json               # shadcn/ui config
-├── next.config.mjs              # Next.js configuration
-├── package.json                 # Root package.json (frontend)
-├── pnpm-lock.yaml               # PNPM lock file
-├── postcss.config.mjs           # PostCSS config
-├── tsconfig.json                # TypeScript config
-└── README.md                    # This file
+### What this project delivers
+- A self-service **ordering portal** focused on Bengali cuisine with menu filtering by time slot (morning, day, evening).
+- A role-aware **admin control center** for approvals, menu management, order fulfillment, and operational metrics.
+- A **multi-database MongoDB architecture** that shards users, orders, and notifications across three fragments while centralizing the menu catalog.
+
+### End-to-end workflow
+1. Users sign up, log in, and browse menu cards tailored to each time period.
+2. Orders originate in the Next.js App Router UI, flow through proxy handlers, and reach the Express API.
+3. The backend determines which MongoDB fragment should store the data, persists the order along with a product snapshot, and generates notifications.
+4. Admins review pending orders, manage inventory, and monitor analytics via the admin-only dashboard.
+
+### Feature highlights
+- **Authentication & approvals**: JWT-based login, role-based redirects, and manual review for teacher/staff accounts.
+- **Menu management**: CRUD, availability toggles, file uploads, and time-slot classification.
+- **Order lifecycle**: Pending → accepted/rejected → served → completed, with real-time notifications.
+- **Analytics dashboard**: Aggregates counts across all fragments for admins while serving self-service stats to end users.
+- **Fragment-aware persistence**: Distributes heavy read/write collections to optimize load and future growth.
+
+---
+
+## Technologies Used
+
+### Frontend Stack
+- **Next.js 16 (App Router)** – Server-first React framework, handles routing and API proxies.
+- **React 19** – Declarative UI components.
+- **TypeScript 5** – Static typing for safer refactors.
+- **Tailwind CSS 4 + tailwindcss-animate** – Utility styling with animation primitives.
+- **Radix UI + shadcn/ui** – Accessible component primitives and prebuilt form/layout elements.
+- **React Hook Form + Zod** – Declarative form handling with schema validation.
+- **Lucide React + date-fns** – Iconography and date formatting helpers.
+
+### Backend Stack
+- **Node.js 18 / Express 4.18** – REST API server with middleware pipeline.
+- **MongoDB + Mongoose 7** – Document database with schema enforcement.
+- **bcryptjs + jsonwebtoken** – Secure password hashing and stateless auth tokens.
+- **multer** – Handles multipart uploads for menu images.
+- **cors + dotenv** – CORS headers and environment configuration.
+
+### Tooling & Utilities
+- **pnpm** – Monorepo-friendly package manager.
+- **concurrently** – Starts both app servers from one command.
+- **nodemon** – Auto-restart the Express server in dev mode.
+- **ESLint / TypeScript** – Linting and type safety in the App Router.
+
+Each technology supports rapid iteration while protecting production concerns: Next.js App Router enables full-stack rendering, Express keeps APIs extensible, and MongoDB fragmentation sustains high-volume ordering during peak meal times.
+
+---
+
+## Core Code Explanation
+
+### Authentication and session proxying
+- `app/api/auth/login/route.ts` forwards login credentials from the App Router to the Express API so cookies and tokens stay within the Next.js domain:
+
+```1:20:app/api/auth/login/route.ts
+const response = await fetch(`${EXPRESS_BACKEND_URL}/api/auth/login`, { method: "POST", ... })
 ```
 
-### Folder Explanations
+- `backend/middleware/authMiddleware.js` verifies JWTs and exposes `req.user` (including the user’s fragment key) to downstream routes. `adminOnly` guards administrative endpoints.
 
-- **`app/`**: Next.js 16 App Router directory containing all pages and API routes
-- **`backend/`**: Express.js backend server with routes, models, and middleware
-- **`components/`**: Reusable React components (UI components from shadcn/ui)
-- **`hooks/`**: Custom React hooks for shared functionality
-- **`lib/`**: Utility functions and API helpers
-- **`public/`**: Static files served by Next.js
-- **`backend/server/uploads/`**: Directory for uploaded food images (created automatically)
+### Fragmentation orchestration
+- `backend/config/dbManager.js` decides which MongoDB fragment to use based on role, department, email hash, or order timestamp. It builds fragment-specific URIs and caches connections.
 
----
-
-## 💻 System Requirements
-
-Before you begin, ensure you have the following installed:
-
-- **Node.js**: Version 18.x or higher ([Download](https://nodejs.org/))
-- **PNPM**: Package manager (install via `npm install -g pnpm`)
-- **MongoDB**: 
-  - Local MongoDB installation ([Download](https://www.mongodb.com/try/download/community)) OR
-  - MongoDB Atlas account ([Sign up](https://www.mongodb.com/cloud/atlas))
-- **Git**: For cloning the repository ([Download](https://git-scm.com/))
-- **Operating System**: Windows 10+, macOS 10.15+, or Linux (Ubuntu 20.04+)
-
-### Verify Installation
-
-```bash
-# Check Node.js version
-node --version  # Should be v18.x or higher
-
-# Check PNPM installation
-pnpm --version  # Should show version number
-
-# Check MongoDB (if installed locally)
-mongod --version  # Should show MongoDB version
-
-# Check Git
-git --version  # Should show Git version
+```8:52:backend/config/dbManager.js
+if (role === "teacher" || department.includes("teacher")) { return "db2" }
 ```
 
+- `backend/utils/modelFactory.js` instantiates per-fragment Mongoose models (e.g., `User_Frag2`, `Order_Frag3`) and provides helpers like `queryAllDatabases` for admin reports.
+
+### Ordering & notifications
+- `backend/routes/orderRoutes.js` creates orders, computes totals, persists menu snapshots, and emits notifications for both admins (stored in db1) and customers (stored in their fragment). Admin routes iterate over fragments to list or mutate orders.
+- `app/orders/page.tsx` fetches `/api/orders/my-orders`, rehydrates product snapshots, and renders responsive cards with status badges sourced from `components/status-badge.tsx`.
+
+### Admin console
+- `app/admin/food-items/page.tsx` manages menu items with search, time-slot filtering, and optimistic UI feedback.
+- `app/admin/users/page.tsx`, `app/admin/orders/page.tsx`, and `app/admin/notifications/page.tsx` wrap approval flows, lifecycle actions, and real-time alert handling.
+
+### Shared utilities
+- `lib/api.ts` injects the JWT, normalizes base URLs, and disables caching for every client-side fetch.
+- `hooks/use-toast.ts` and `components/ui/toaster.tsx` deliver consistent toast notifications after key actions.
+
 ---
 
-## 🚀 Installation Guide
+## Project Structure
 
-Follow these steps to set up and run the project:
+```
+.
+├── app/                        # Next.js App Router entrypoint
+│   ├── admin/                  # Admin-only sections (users, orders, menu, notifications)
+│   ├── api/                    # Edge functions that proxy to Express endpoints
+│   ├── dashboard/              # Authenticated user analytics
+│   ├── department/             # Department landing content
+│   ├── login/, signup/         # Auth flows
+│   ├── orders/, products/      # Ordering experiences
+│   ├── profile/                # User profile & password updates
+│   ├── globals.css             # Global styles
+│   └── layout.tsx              # Root layout with providers and Toaster
+│
+├── backend/                    # Express API service
+│   ├── config/dbManager.js     # Fragment-aware connection & routing logic
+│   ├── middleware/authMiddleware.js
+│   ├── models/schemas.js       # Shared Mongoose schemas (User, Product, Order, Notification)
+│   ├── routes/*.js             # REST endpoints (auth, users, products, orders, dashboard, notifications)
+│   ├── utils/modelFactory.js   # Dynamic model creation + cross-fragment querying
+│   ├── scripts/                # `createAdmin.js`, `seedBengaliFoods.js`
+│   └── server.js               # Express bootstrap and route mounting
+│
+├── components/                 # Reusable React components (sidebar, navbar, shadcn UI)
+├── hooks/                      # Custom hooks (debounce, toast)
+├── lib/                        # Client utilities (API helper, misc functions)
+├── public/                     # Static assets and placeholders
+├── styles/                     # Tailwind override files
+├── frontend/                   # Legacy CRA-style frontend kept for reference
+├── FRAGMENTATION_SUMMARY.md    # Standalone shard reference
+└── PROJECT_REPORT.md           # Extended architecture report
+```
 
-### Step 1: Clone the Repository
+**Communication flow:** The App Router makes calls via `lib/api.ts` to `/app/api/*` endpoints, which proxy to `backend/server.js`. Responses return through Next.js, allowing consistent headers, cookies, and middleware execution.
 
+---
+
+## Database Design & Fragmentation
+
+### Distribution matrix
+| Collection              | db1 (`cafeteria-db1`)      | db2 (`cafeteria-db2`)            | db3 (`cafeteria-db3`)            |
+|-------------------------|----------------------------|----------------------------------|----------------------------------|
+| Users – admins/students | ✅ 100%                    | ❌                                | ❌                                |
+| Users – teachers        | ❌                          | ✅ 100%                           | ❌                                |
+| Users – staff/regular   | ❌                          | ⚖️ ~50% (email hash even)         | ⚖️ ~50% (email hash odd)          |
+| Products (menu)         | ✅ 100% (source of truth)  | ❌                                | ❌                                |
+| Orders                  | ✅ referenced for analytics| ✅ time-slot & user fragment      | ✅ time-slot & user fragment      |
+| Notifications           | ✅ admin feed               | ✅ user-specific                  | ✅ user-specific                  |
+
+### Fragmentation rules
+- **User placement:** Role and department decide the fragment. Regular users hash by email to spread across db2/db3. Admins and staff default to db3; students stay in db1 for quicker verification.
+- **Menu placement:** Menu items live exclusively in db1 so every order references a canonical product.
+- **Order placement:** Orders shard by the local creation time using `getDatabaseForOrder`:
+  - Morning (< 11:00) → db1
+  - Day (11:00–15:00) → db2
+  - Evening (> 15:00) → db3
+- **Notifications:** Persisted beside the owning user to minimize cross-fragment queries.
+
+### Relationships
+- **Users ↔ Orders:** One-to-many. Orders carry both a foreign key (`userId`) and a snapshot of product data to avoid inconsistent receipts.
+- **Orders ↔ Products:** Reference plus cached fields (`foodName`, `price`, `image`, `timeSlot`).
+- **Users ↔ Notifications:** One-to-many per fragment; read status powers dashboard indicators.
+
+This layout keeps user workloads balanced, menus consistent, and administrative reporting fast by fanning out queries through `queryAllDatabases`.
+
+---
+
+## Setup & Installation
+
+### 1. Clone the repository
 ```bash
 git clone <repository-url>
-cd finalv3
+cd <project-folder>
 ```
 
-### Step 2: Open Terminal in Root Directory
-
-Make sure you're in the project root directory (`finalv3/`).
-
-### Step 3: Install Dependencies
-
-Install all dependencies for both frontend and backend:
-
+### 2. Install dependencies (root command installs both apps)
 ```bash
 pnpm install
 ```
 
-This command will:
-- Install Next.js frontend dependencies
-- Install Express.js backend dependencies
-- Set up all required packages
-
-**Note**: If you encounter errors, try:
-```bash
-# Clear cache and reinstall
-rm -rf node_modules pnpm-lock.yaml
-pnpm install
-```
-
-### Step 4: Setup Backend Environment Variables
-
-Create a `.env` file in the `backend/` directory:
-
-```bash
-cd backend
-touch .env  # On Windows: type nul > .env
-```
-
-Add the following environment variables to `backend/.env`:
-
+### 3. Configure environment variables
+Create `backend/.env`:
 ```env
-# MongoDB Connection
-# For Local MongoDB:
-MONGODB_URI=mongodb://localhost:27017/cafeteria
-
-# For MongoDB Atlas (replace with your connection string):
-# MONGODB_URI=mongodb+srv://username:password@cluster.mongodb.net/cafeteria?retryWrites=true&w=majority
-
-# Optional: Separate database URIs for multi-DB setup
-# MONGODB_URI_DB1=mongodb://localhost:27017/cafeteria-db1
-# MONGODB_URI_DB2=mongodb://localhost:27017/cafeteria-db2
-# MONGODB_URI_DB3=mongodb://localhost:27017/cafeteria-db3
-
-# JWT Secret (change this to a random string in production)
-JWT_SECRET=your-super-secret-jwt-key-change-this-in-production
-
-# Server Port (default: 5000)
+MONGODB_URI=mongodb://localhost:27017/cafeteria      # or your Atlas URI
+# Optional fragment overrides:
+# MONGODB_URI_DB1=...
+# MONGODB_URI_DB2=...
+# MONGODB_URI_DB3=...
+JWT_SECRET=change-me-super-secret
 PORT=5000
 ```
 
-**Important**: 
-- Replace `your-super-secret-jwt-key-change-this-in-production` with a secure random string
-- For MongoDB Atlas, replace the connection string with your actual credentials
-- The default port is `5000`, but you can change it to `5001` if needed
-
-### Step 5: Setup Frontend Environment Variables
-
-Create a `.env.local` file in the **root directory** (not in `backend/`):
-
-```bash
-# From root directory
-touch .env.local  # On Windows: type nul > .env.local
-```
-
-Add the following to `.env.local`:
-
+Create `.env.local` in the project root:
 ```env
-# Backend API URL
 NEXT_PUBLIC_API_BASE_URL=http://localhost:5000
 ```
 
-**Note**: If you changed the backend port in Step 4, update this URL accordingly (e.g., `http://localhost:5001`).
-
-### Step 6: Start MongoDB (If Using Local MongoDB)
-
-**Windows:**
-```bash
-# Start MongoDB service (if installed as service)
-net start MongoDB
-
-# Or run MongoDB manually
-mongod --dbpath "C:\data\db"
-```
-
-**macOS/Linux:**
-```bash
-# Start MongoDB service
-sudo systemctl start mongod  # Linux
-brew services start mongodb-community  # macOS (if installed via Homebrew)
-
-# Or run MongoDB manually
-mongod --dbpath /usr/local/var/mongodb
-```
-
-**MongoDB Atlas Users**: Skip this step - your database is cloud-hosted.
-
-### Step 7: Start the Application
-
-From the **root directory**, run:
-
-```bash
-pnpm run dev:all
-```
-
-This command will:
-- Start the Express.js backend server (port 5000)
-- Start the Next.js frontend development server (port 3000)
-- Run both concurrently
-
-You should see output like:
-```
-[backend] Server running on port 5000
-[frontend] ▲ Next.js 16.0.0
-[frontend] - Local:        http://localhost:3000
-```
-
-### Step 8: Verify Both Servers Are Running
-
-1. **Backend**: Open [http://localhost:5000/api/health](http://localhost:5000/api/health)
-   - Should return: `{"message":"Server is running"}`
-
-2. **Frontend**: Open [http://localhost:3000](http://localhost:3000)
-   - Should show the application homepage
-
----
-
-## 🔧 Backend Setup
-
-### Backend Directory Structure
-
-```
-backend/
-├── config/          # Database configuration
-├── middleware/      # Authentication middleware
-├── models/          # Mongoose models
-├── routes/          # API routes
-├── scripts/         # Utility scripts
-├── server/          # Server files (uploads directory)
-├── utils/           # Utility functions
-├── .env             # Environment variables (create this)
-├── package.json     # Dependencies
-└── server.js        # Entry point
-```
-
-### Backend Dependencies
-
-The backend uses the following key packages:
-- `express`: Web framework
-- `mongoose`: MongoDB ODM
-- `bcryptjs`: Password hashing
-- `jsonwebtoken`: JWT authentication
-- `cors`: Cross-origin resource sharing
-- `multer`: File upload handling
-- `dotenv`: Environment variable management
-- `nodemon`: Development server (dev dependency)
-
-### Backend Environment Variables
-
-Required variables in `backend/.env`:
-
-| Variable | Description | Example |
-|----------|-------------|---------|
-| `MONGODB_URI` | MongoDB connection string | `mongodb://localhost:27017/cafeteria` |
-| `JWT_SECRET` | Secret key for JWT tokens | `your-secret-key-here` |
-| `PORT` | Server port (optional) | `5000` |
-
-### Backend Default Port
-
-The backend runs on **port 5000** by default. You can change it by setting `PORT` in `backend/.env`.
-
-### MongoDB Connection Guide
-
-#### Option 1: Local MongoDB
-
-1. Install MongoDB Community Edition from [mongodb.com](https://www.mongodb.com/try/download/community)
-2. Start MongoDB service
-3. Use connection string: `mongodb://localhost:27017/cafeteria`
-
-#### Option 2: MongoDB Atlas (Cloud)
-
-1. Sign up at [MongoDB Atlas](https://www.mongodb.com/cloud/atlas)
-2. Create a free cluster
-3. Create a database user
-4. Whitelist your IP address (or use `0.0.0.0/0` for development)
-5. Get connection string: `mongodb+srv://username:password@cluster.mongodb.net/cafeteria`
-6. Replace `username` and `password` with your credentials
-
-### Create Admin User
-
-After starting the backend, create an admin user:
-
-```bash
-cd backend
-node scripts/createAdmin.js
-```
-
-This will prompt you for:
-- Admin email
-- Admin password
-- Admin name
-
-### Seed Food Items (Optional)
-
-To populate the database with sample Bengali food items:
-
-```bash
-cd backend
-node scripts/seedBengaliFoods.js
-```
-
----
-
-## 🎨 Frontend Setup
-
-### Frontend Directory Structure
-
-```
-app/                 # Next.js App Router
-├── admin/          # Admin pages
-├── api/            # API routes (proxies)
-├── dashboard/     # User dashboard
-├── login/          # Login page
-├── orders/         # Orders page
-├── products/       # Products page
-├── profile/        # Profile page
-└── signup/         # Signup page
-```
-
-### Frontend Dependencies
-
-The frontend uses:
-- **Next.js 16**: React framework with App Router
-- **TypeScript**: Type safety
-- **Tailwind CSS**: Styling
-- **Radix UI**: Accessible UI components
-- **shadcn/ui**: Component library
-- **React Hook Form**: Form management
-- **Zod**: Schema validation
-
-### Frontend Environment Variables
-
-Required variable in `.env.local` (root directory):
-
-| Variable | Description | Example |
-|----------|-------------|---------|
-| `NEXT_PUBLIC_API_BASE_URL` | Backend API URL | `http://localhost:5000` |
-
-**Important**: 
-- File must be named `.env.local` (not `.env`)
-- Must be in the **root directory** (not in `backend/`)
-- Variable must start with `NEXT_PUBLIC_` to be accessible in the browser
-
-### Frontend Default Port
-
-The frontend runs on **port 3000** by default (Next.js standard).
-
----
-
-## 🚀 Running Frontend + Backend Together
-
-You have **3 methods** to run both servers:
-
-### ✅ Method 1: Root Folder (Recommended)
-
-This is the **recommended method** for this project:
-
-```bash
-# From root directory
-pnpm install
-pnpm run dev:all
-```
-
-This automatically runs both frontend and backend concurrently using the `concurrently` package.
-
-**What happens:**
-- Backend starts on `http://localhost:5000`
-- Frontend starts on `http://localhost:3000`
-- Both run in the same terminal with color-coded output
-
-### ✅ Method 2: Run Manually in Two Terminals
-
-If you prefer separate terminals:
-
-**Terminal 1 (Backend):**
-```bash
-cd backend
-pnpm install  # If not already installed
-pnpm start    # Production mode
-# OR
-pnpm run dev  # Development mode (with nodemon)
-```
-
-**Terminal 2 (Frontend):**
-```bash
-# From root directory
-pnpm dev      # Next.js development server
-```
-
-### ✅ Method 3: PM2 (For Production)
-
-For production deployment with PM2:
-
-```bash
-# Install PM2 globally
-npm install -g pm2
-
-# Start backend
-cd backend
-pm2 start server.js --name "cafeteria-backend"
-
-# Start frontend (from root)
-cd ..
-pm2 start "pnpm dev" --name "cafeteria-frontend"
-
-# View running processes
-pm2 list
-
-# View logs
-pm2 logs
-
-# Stop processes
-pm2 stop all
-```
-
----
-
-## ⚠️ Common Errors & Fixes
-
-### 1. "Cannot connect to server (5000)" or "Cannot connect to server (5001)"
-
-**Problem**: Frontend cannot reach the backend.
-
-**Solutions**:
-- ✅ Check if backend is running: Visit `http://localhost:5000/api/health`
-- ✅ Verify `.env.local` has correct `NEXT_PUBLIC_API_BASE_URL`
-- ✅ Ensure backend port matches frontend configuration
-- ✅ Check for firewall blocking the connection
-
-### 2. Backend Not Running
-
-**Problem**: Backend server fails to start.
-
-**Solutions**:
-- ✅ Check MongoDB is running (if using local MongoDB)
-- ✅ Verify `backend/.env` file exists and has correct values
-- ✅ Check if port 5000 is already in use:
+### 4. Start MongoDB (local examples)
+- Windows service: `net start MongoDB`
+- macOS (Homebrew): `brew services start mongodb-community`
+- Ubuntu: `sudo systemctl start mongod`
+
+### 5. Run the application
+- **Frontend & backend together:**
   ```bash
-  # Windows
-  netstat -ano | findstr :5000
-  
-  # macOS/Linux
-  lsof -i :5000
+  pnpm run dev:all
   ```
-- ✅ Kill the process using the port or change `PORT` in `.env`
-
-### 3. MongoDB Connection Errors
-
-**Problem**: `MongooseError: connect ECONNREFUSED` or similar.
-
-**Solutions**:
-- ✅ **Local MongoDB**: Ensure MongoDB service is running
+- **Frontend only:**
   ```bash
-  # Windows
-  net start MongoDB
-  
-  # macOS/Linux
-  sudo systemctl start mongod
+  pnpm run dev:client
   ```
-- ✅ **MongoDB Atlas**: 
-  - Verify connection string is correct
-  - Check IP whitelist includes your IP (or `0.0.0.0/0` for development)
-  - Verify database user credentials
-- ✅ Test connection string in MongoDB Compass or `mongosh`
+- **Backend only:**
+  ```bash
+  pnpm run dev:server
+  ```
 
-### 4. Missing Environment Variables
+The combined command uses `concurrently` to start both servers. Next.js runs on `http://localhost:3000`, Express on `http://localhost:5000`.
 
-**Problem**: `process.env.MONGODB_URI is undefined` or similar.
-
-**Solutions**:
-- ✅ Ensure `.env` file exists in `backend/` directory
-- ✅ Ensure `.env.local` exists in root directory
-- ✅ Restart the server after creating/modifying `.env` files
-- ✅ Check for typos in variable names (case-sensitive)
-
-### 5. CORS Issues
-
-**Problem**: `Access to fetch at 'http://localhost:5000' from origin 'http://localhost:3000' has been blocked by CORS policy`.
-
-**Solutions**:
-- ✅ Backend already has CORS enabled in `backend/server.js`
-- ✅ Verify `cors` package is installed: `cd backend && pnpm install`
-- ✅ Check backend is running on the correct port
-
-### 6. Port Already in Use
-
-**Problem**: `Error: listen EADDRINUSE: address already in use :5000`
-
-**Solutions**:
+### 6. Seed data (optional)
 ```bash
-# Find process using port 5000
-# Windows
-netstat -ano | findstr :5000
-taskkill /PID <PID> /F
-
-# macOS/Linux
-lsof -i :5000
-kill -9 <PID>
-
-# Or change port in backend/.env
-PORT=5001
-```
-
-### 7. PNPM Command Not Found
-
-**Problem**: `pnpm: command not found`
-
-**Solutions**:
-```bash
-# Install PNPM globally
-npm install -g pnpm
-
-# Verify installation
-pnpm --version
-```
-
-### 8. Module Not Found Errors
-
-**Problem**: `Cannot find module 'xyz'` or similar.
-
-**Solutions**:
-```bash
-# Reinstall dependencies
-rm -rf node_modules pnpm-lock.yaml
-pnpm install
-
-# For backend specifically
 cd backend
-rm -rf node_modules package-lock.json
-pnpm install
+node scripts/createAdmin.js        # interactive admin bootstrap
+node scripts/seedBengaliFoods.js   # seed Bengali dishes by time slot
 ```
 
-### 9. Image Upload Not Working
+---
 
-**Problem**: Images not uploading or not displaying.
+## Dependencies
 
-**Solutions**:
-- ✅ Ensure `backend/server/uploads/` directory exists (created automatically)
-- ✅ Check file size (max 5MB)
-- ✅ Verify file is an image (jpg, png, gif, etc.)
-- ✅ Check backend logs for upload errors
-- ✅ Verify `multer` package is installed in backend
+### Frontend (root `package.json`)
+- `next@16.0.0` – App Router framework.
+- `react@19.2.0`, `react-dom@19.x` – Core UI runtime.
+- `@radix-ui/*` (accordion, dialog, toast, etc.) – Accessible primitives relied on by shadcn/ui components.
+- `@hookform/resolvers@3.10.0`, `react-hook-form@7.60.0`, `zod@3.25.76` – Form validation stack.
+- `tailwindcss@4.1.9`, `@tailwindcss/postcss@4.1.9`, `autoprefixer@10.4.20` – Styling pipeline.
+- `lucide-react@0.454.0`, `date-fns@4.1.0` – Icons and date utilities.
+- `axios@latest` – Retained for the legacy `frontend/` client.
 
-### 10. Authentication Errors
+### Backend (`backend/package.json`)
+- `express@4.18.2` – REST framework.
+- `mongoose@7.0.0` – ODM with schema enforcement.
+- `bcryptjs@2.4.3` – Password hashing.
+- `jsonwebtoken@9.0.0` – Token issuing and verification.
+- `cors@2.8.5` – CORS headers.
+- `dotenv@16.0.3` – Environment configuration.
+- `nodemon@2.0.20` (dev) – Hot reloading for development.
 
-**Problem**: `Unauthorized` or `Invalid token` errors.
-
-**Solutions**:
-- ✅ Clear browser localStorage: `localStorage.clear()`
-- ✅ Log out and log back in
-- ✅ Verify `JWT_SECRET` in `backend/.env` is set
-- ✅ Check token expiration (default: 7 days)
+These libraries were selected to keep the codebase approachable for students while offering modern tooling for production-readiness.
 
 ---
 
-## 🛠️ Technologies Used
+## How the Project Works (Flow Explanation)
 
-### Frontend
-- **Next.js 16.0.0** - React framework with App Router
-- **React 19.2.0** - UI library
-- **TypeScript 5.x** - Type safety
-- **Tailwind CSS 4.1.9** - Utility-first CSS framework
-- **Radix UI** - Accessible component primitives
-- **shadcn/ui** - Component library built on Radix UI
-- **React Hook Form** - Form state management
-- **Zod** - Schema validation
-- **Axios** - HTTP client
-- **Lucide React** - Icon library
+### Data flow ladder
+1. **User action:** A logged-in user submits an order from `app/products/page.tsx`.
+2. **Client request:** `lib/api.ts` posts to `/api/orders` (App Router API route).
+3. **Proxy hop:** Next.js forwards the request to `http://localhost:5000/api/orders`.
+4. **Backend processing:**
+   - `protect` middleware verifies the JWT.
+   - `getDatabaseForOrder` picks the fragment by local order time.
+   - Fragment-specific `Order` model persists the order and product snapshot.
+   - Notifications are inserted for admins (db1) and the ordering user (their fragment).
+5. **Database write:** Order lands in `Order_FragX`, referencing `Menu_Frag1`.
+6. **Response:** Express returns JSON → Next.js replies → React updates state and shows a toast.
 
-### Backend
-- **Node.js 18+** - JavaScript runtime
-- **Express.js 4.18.2** - Web framework
-- **MongoDB** - NoSQL database
-- **Mongoose 7.0.0** - MongoDB ODM
-- **JWT (jsonwebtoken)** - Authentication
-- **bcryptjs** - Password hashing
-- **Multer** - File upload handling
-- **CORS** - Cross-origin resource sharing
-- **dotenv** - Environment variable management
+```
+[Next.js UI] → [App Router API Proxy] → [Express Router] → [dbManager/modelFactory]
+       ↑                                                ↓
+ [React state refresh] ← [JSON payload] ← [MongoDB fragment]
+```
 
-### Development Tools
-- **PNPM** - Package manager
-- **Nodemon** - Development server auto-reload
-- **Concurrently** - Run multiple commands
-- **TypeScript** - Type checking
-- **ESLint** - Code linting
-
-### Database Architecture
-- **MongoDB** with multi-database fragmentation (sharding)
-- **3 separate databases** for horizontal scaling:
-  - `cafeteria-db1`: Admin users and products
-  - `cafeteria-db2`: 50% of regular users
-  - `cafeteria-db3`: 50% of regular users
+### Other key flows
+- **Admin approvals:** `/api/admin/users/:id/approve` updates the user’s fragment record, unlocks dashboard access, and triggers notification entries.
+- **Order lifecycle updates:** Admin endpoints mutate order status across fragments; `createNotification` publishes alerts for each transition.
+- **Dashboard analytics:** `/api/dashboard/stats` aggregates counts from all fragments using `queryAllDatabases`.
 
 ---
 
-## 📄 License
+## Code-Level Highlights
 
-This project is licensed under the **MIT License**.
-
----
-
-## 📞 Support
-
-If you encounter any issues not covered in this README:
-
-1. Check the [Common Errors & Fixes](#-common-errors--fixes) section
-2. Review the `PROJECT_REPORT.md` for detailed architecture information
-3. Check backend logs for error messages
-4. Verify all environment variables are set correctly
+- **Dynamic fragment selection:** `getDatabaseForUser` keeps related roles together and uses hashing to load-balance generic accounts.
+- **Cross-fragment querying:** `queryAllDatabases` fans out read operations for the admin dashboard without blocking the entire request if one fragment is down.
+- **Snapshot-first orders:** Orders store current menu metadata (`foodName`, `price`, `image`, `timeSlot`) so receipts stay accurate even if the menu changes later.
+- **Centralized middleware:** JWT auth and admin gating stay in one place thanks to `protect` and `adminOnly`, reducing repetition.
+- **Reusable UI primitives:** The dashboard uses shared components (`Sidebar`, `Topbar`, `StatusBadge`) and shadcn UI patterns for consistent styling.
 
 ---
 
-## 🎉 Getting Started Checklist
+## Common Errors & Fixes
 
-- [ ] Node.js 18+ installed
-- [ ] PNPM installed globally
-- [ ] MongoDB running (local or Atlas)
-- [ ] Repository cloned
-- [ ] Dependencies installed (`pnpm install`)
-- [ ] Backend `.env` file created and configured
-- [ ] Frontend `.env.local` file created and configured
-- [ ] Backend server running on port 5000
-- [ ] Frontend server running on port 3000
-- [ ] Admin user created (`node backend/scripts/createAdmin.js`)
-- [ ] Application accessible at `http://localhost:3000`
+| Error | Likely Cause | Fix |
+|-------|--------------|-----|
+| `pnpm: command not found` | pnpm not installed globally | `npm install -g pnpm`, then retry |
+| `Error: listen EADDRINUSE: 5000` | Port already in use | Identify and kill process (`netstat -ano | findstr :5000` on Windows) or change `PORT` in `.env` |
+| `MongooseError: connect ECONNREFUSED` | MongoDB service stopped or URI incorrect | Start MongoDB (`net start MongoDB`, `brew services start mongodb-community`, etc.) or verify Atlas credentials |
+| `Invalid token` / 401 responses | Missing or stale JWT | Re-log, clear `localStorage`, confirm backend `JWT_SECRET` matches |
+| `NEXT_PUBLIC_API_BASE_URL undefined` | `.env.local` missing | Create `.env.local` in project root, restart Next.js |
+| Image upload failures | Upload directory missing or file too large | Ensure `backend/server/uploads/` exists (auto-created) and file <5MB |
+| Fragment mismatch logs | Role/department inconsistent with expectations | Check user role, department, and system clock; verify custom fragment overrides |
+
+If an issue persists, inspect backend console output—fragment helpers log routing decisions to simplify debugging.
 
 ---
 
-**Happy Coding! 🚀**
+## Developer Guide
+
+- **Orientation:** Read `PROJECT_REPORT.md` for a narrative overview, then explore `backend/routes` and `app/admin` for implementation patterns.
+- **Adding APIs:** Create a router under `backend/routes`, export it, and mount it in `backend/server.js`. Use `getDatabaseForUser` or `getOrderModel` to stay fragment-aware.
+- **Adding pages/components:** Create a folder under `app/` with `page.tsx`, reuse `Sidebar`, `Topbar`, and shadcn UI primitives for coherence.
+- **Shared utilities:** Frontend helpers live in `lib/`, backend helpers in `backend/utils/`. Always use `lib/api.ts` to ensure tokens and base URLs are handled automatically.
+- **Testing changes:** Run `pnpm run dev:all` for an integrated experience or `pnpm run dev:client` / `pnpm run dev:server` for focused debugging.
+- **Coding conventions:** Functional components with hooks, Tailwind utility classes, shadcn naming (`text-muted-foreground`), and descriptive toast messages.
+
+---
+
+## Credits & License
+
+- **Contributors:** Built by the Cafeteria Management team with gratitude to the Vercel, shadcn/ui, and Radix UI communities.
+- **License:** MIT License (see repository metadata or include your own `LICENSE` file).
+
+---
+
+Happy building! Clone, run, and tailor the cafeteria experience to your campus. 🚀
