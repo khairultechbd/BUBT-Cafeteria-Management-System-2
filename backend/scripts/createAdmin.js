@@ -23,9 +23,9 @@ if (!email || !password) {
 
 async function createAdmin() {
   try {
-    // Ensure connection to admin database (db1)
-    await connectToDatabase("db1")
-    const User = await getUserModel("db1")
+    // Ensure connection to admin database (db3)
+    await connectToDatabase("db3")
+    const User = await getUserModel("db3")
 
     const existing = await User.findOne({ email })
     if (existing) {
